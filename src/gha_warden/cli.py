@@ -104,7 +104,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         config = load_config(args.config)
     except ConfigError as exc:
-        print(f"gha-warden: error: {exc}", file=sys.stderr)
+        # Config errors quote keys and values from the repository's config file.
+        print(f"gha-warden: error: {neutralize(str(exc))}", file=sys.stderr)
         return EXIT_ERROR
 
     ignore = [part.strip().upper() for item in args.ignore for part in item.split(",") if part]

@@ -11,13 +11,14 @@ from gha_warden.workflow import NodePath, Workflow
 
 _PRIVILEGED_TRIGGERS = frozenset({"pull_request_target", "workflow_run", "issue_comment"})
 _TRIGGERING_ACTOR = re.compile(r"(?<![\w.-])github\.triggering_actor(?![\w-])", re.IGNORECASE)
-_ACTOR_CONTEXT = r"(?<![\w.-])github\.actor(?![\w.-])"
+_ACTOR_CONTEXT = r"\(?\s*(?<![\w.-])github\.actor(?![\w.-])\s*\)?"
 _ACTOR_NOT_EQUAL = re.compile(
     r"github\.actor\s*!=\s*(?:'[^']*'|\"[^\"]*\")|(?:'[^']*'|\"[^\"]*\")\s*!=\s*github\.actor",
     re.IGNORECASE,
 )
-_BOT_NAME = r"[^'\"]*(?:\[bot\]|dependabot|renovate)[^'\"]*"
-_BOT_LITERAL = rf"(?:'{_BOT_NAME}'|\"{_BOT_NAME}\")"
+_BOT_WORD = r"(?:\[bot\]|dependabot|renovate)"
+# A single-quoted literal may contain double quotes, as in fromJSON('["dependabot[bot]"]').
+_BOT_LITERAL = rf"(?:'[^']*{_BOT_WORD}[^']*'|\"[^\"]*{_BOT_WORD}[^\"]*\")"
 # The actor compared with, or searched for, a bot-like literal. A bot name elsewhere in the
 # condition (a label, a branch) is not an actor check.
 _ACTOR_IS_BOT = re.compile(

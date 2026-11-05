@@ -181,3 +181,22 @@ def test_error_messages_cannot_start_a_workflow_command(
     code, _, err = run(capsys, "evil\n::error::x.yml")
     assert code == 2
     assert not any(line.startswith("::") for line in err.splitlines())
+
+
+@pytest.mark.parametrize(
+    "content",
+    # The TOML escape \n (backslash, n) decodes to a newline inside the key or rule ID.
+    ['"a\\n::add-mask::CFGKEY" = 1\n', 'ignore = ["GW001\\n::warning::CFGRULE"]\n'],
+    ids=["unknown-key", "unknown-rule"],
+)
+def test_config_errors_cannot_start_a_workflow_command(
+    tmp_path: Path,
+    write_workflow: WriteWorkflow,
+    capsys: pytest.CaptureFixture[str],
+    content: str,
+) -> None:
+    config = tmp_path / "evil.toml"
+    config.write_text(content)
+    code, _, err = run(capsys, "--config", str(config), str(write_workflow(VULNERABLE)))
+    assert code == 2
+    assert not any(line.lstrip().startswith("::") for line in err.splitlines())

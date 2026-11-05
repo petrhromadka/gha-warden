@@ -375,3 +375,17 @@ def test_gw017_severity_and_message(findings_for: FindingsFor) -> None:
     assert "github.actor" in finding.message
     assert "pull_request_target" in finding.message
     assert "pull_request.user.login" in finding.remediation
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        """contains(fromJSON('["dependabot[bot]","renovate[bot]"]'), github.actor)""",
+        """contains(fromJSON('["dependabot[bot]", "renovate[bot]"]'), github.actor)""",
+        "(github.actor) == 'dependabot[bot]'",
+    ],
+)
+def test_gw017_bot_allowlists_and_parentheses(condition: str) -> None:
+    from gha_warden.rules.actor import spoofable_actor_checks
+
+    assert spoofable_actor_checks(condition) == ["github.actor"]
