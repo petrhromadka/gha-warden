@@ -201,6 +201,148 @@ POSITIVE = {
                 run: Get-Content tools/path.txt | Out-File -Append $env:GITHUB_PATH
         """,
     ),
+    "GW012-while-read-loop-from-artifact": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+                  path: artifact
+              - run: |
+                  while read -r line; do
+                    echo "$line" >> "$GITHUB_ENV"
+                  done < artifact/x
+        """,
+    ),
+    "GW012-piped-loop-from-artifact": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+                  path: artifact
+              - run: |
+                  cat artifact/y | while read -r line; do
+                    echo "$line" >> "$GITHUB_ENV"
+                  done
+        """,
+    ),
+    "GW012-variable-holds-artifact-path": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+                  path: artifact
+              - run: |
+                  F=artifact/env.txt
+                  cat "$F" >> "$GITHUB_ENV"
+        """,
+    ),
+    "GW012-env-from-download-path-output": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                id: dl
+                with:
+                  run-id: 1234
+                  path: ${{ runner.temp }}/pr
+              - env:
+                  INFO: ${{ steps.dl.outputs.download-path }}/info.json
+                run: jq -r '.number' "$INFO" >> "$GITHUB_OUTPUT"
+        """,
+    ),
+    "GW012-runner-temp-path": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+                  path: ${{ runner.temp }}/pr
+              - run: echo "sha=$(cat "${RUNNER_TEMP}/pr/sha")" >> "$GITHUB_OUTPUT"
+        """,
+    ),
+    "GW012-github-script-reads-artifact": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+                  path: artifact
+              - uses: actions/github-script@v7
+                with:
+                  script: |
+                    const fs = require('fs');
+                    const body = fs.readFileSync('artifact/env.txt', 'utf8');
+                    core.exportVariable('BODY', body);
+        """,
+    ),
+    "GW012-source-after-root-download": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+                  name: artifact
+              - run: source artifact/x.sh
+          k:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+                  path: artifact
+              - run: . ./artifact/x
+        """,
+    ),
+    "GW012-same-step-gh-run-download": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: |
+                  gh run download "$RUN_ID" -n pr -D pr  # HERE
+                  echo "number=$(cat pr/number)" >> "$GITHUB_OUTPUT"
+        """,
+    ),
 }
 
 NEGATIVE = {
@@ -326,6 +468,50 @@ NEGATIVE = {
               - run: |
                   cd tools
                   make
+        """,
+    ),
+    "GW012-file-made-by-the-job": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: gh run download "$RUN_ID" --name request --dir request
+              - run: ./build.sh --out data.json
+              - run: |
+                  { printf 'data='; cat data.json; } >> "$GITHUB_OUTPUT"
+                  F=out/list.txt
+                  while read -r line; do
+                    echo "$line" >> "$GITHUB_ENV"
+                  done < "$F"
+                  echo "n=$(tr -cd '0-9' < request/number)" >> "$GITHUB_OUTPUT"
+        """,
+    ),
+    "GW012-github-script-validated-or-other-file": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4
+                with:
+                  run-id: 1234
+                  path: artifact
+              - uses: actions/github-script@v7
+                with:
+                  script: |
+                    const fs = require('fs');
+                    const pr = Number(fs.readFileSync('artifact/pr', 'utf8'));
+                    core.setOutput('pr', pr);
+              - uses: actions/github-script@v7
+                with:
+                  script: |
+                    const fs = require('fs');
+                    core.setOutput('v', fs.readFileSync('VERSION', 'utf8'));
         """,
     ),
 }
