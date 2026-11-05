@@ -254,6 +254,8 @@ POSITIVE = {
             runs-on: ubuntu-latest
             env:
               DB_PASSWORD: hunter2-not-real  # HERE
+              API_KEY: abcd1234efgh5678  # HERE
+              db_password: hunter2  # HERE
             steps:
               - run: echo hi
         """,
@@ -490,7 +492,17 @@ NEGATIVE = {
                   token-limit: 100
                   secret-scanning: enabled
                   secret-count: 3
-                  password: no
+                  db-password: no
+                  server-password: CI_DEPLOY_PASSWORD
+                  repo_secrets: |
+                    MY_API_KEY=team-path:api_key
+                  tls-secret: two words here
+                  api-token: short
+              - run: echo hi
+                env:
+                  TOKEN_USAGE_SUMMARY_TITLE: Token Usage
+                  SECRET_NAMES: "A_NAME,B_NAME"
+                  FETCH_TOKENIZERS: "1"
         """,
     ),
 }
