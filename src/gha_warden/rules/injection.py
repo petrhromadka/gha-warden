@@ -119,12 +119,23 @@ _GIT = (
     rf"(?:-[Cc]|--(?:git-dir|work-tree|namespace|exec-path|super-prefix|config-env))\s+{_GIT_ARG}\s+"
     r"|-\S+\s+)*"
 )
+# The rest of one shell command: up to a newline, `;`, `|` or `&&`, across line continuations.
+# Separators inside `${{ }}` are masked first (`_mask_expressions`), so `||` in an expression
+# does not end the command.
+_SAME_COMMAND = r"(?:\\\n|[^\n;|&]|&(?!&))*?"
+
+
+def _mask_expressions(script: str) -> str:
+    """Replace `;`, `|` and `&` inside `${{ }}` with `_`, keeping every offset."""
+    return _EXPRESSION.sub(lambda m: re.sub(r"[;|&]", "_", m.group()), script)
+
+
 _PR_CODE_COMMAND = re.compile(
     r"\bgh\s+pr\s+checkout\b"
-    rf"|{_GIT}(?:fetch|pull)\b(?:[^\n]|\\\n)*?(?<![\w.-])(?:refs/)?pull/"
-    rf"|{_GIT}(?:fetch|pull|clone)\b(?:[^\n]|\\\n)*?(?:{_PR_COMMIT})"
+    rf"|{_GIT}(?:fetch|pull)\b{_SAME_COMMAND}(?<![\w.-])(?:refs/)?pull/"
+    rf"|{_GIT}(?:fetch|pull|clone)\b{_SAME_COMMAND}(?:{_PR_COMMIT})"
     rf"|{_GIT}(?:checkout|switch|reset|merge|cherry-pick|worktree\s+add)\b"
-    rf"(?:[^\n]|\\\n)*?(?:{_UNTRUSTED_CHECKOUT.pattern})",
+    rf"{_SAME_COMMAND}(?:{_UNTRUSTED_CHECKOUT.pattern})",
     re.IGNORECASE,
 )
 
@@ -199,7 +210,7 @@ class PwnRequest(Rule):
 
     def _check_run(self, workflow: Workflow, step: Step, trigger: str) -> Iterator[Finding]:
         script = step.run or ""
-        for match in _PR_CODE_COMMAND.finditer(script):
+        for match in _PR_CODE_COMMAND.finditer(_mask_expressions(script)):
             line_start = script.rfind("\n", 0, match.start()) + 1
             if script[line_start : match.start()].lstrip().startswith("#"):
                 continue

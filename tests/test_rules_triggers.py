@@ -84,6 +84,28 @@ POSITIVE = {
               - run: git fetch origin pull/${{ github.event.number }}/head:pr  # HERE
         """,
     ),
+    "GW002-run-git-fetch-pull-after-other-command": (
+        "GW002",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: echo hi && git fetch origin pull/7/head:pr  # HERE
+        """,
+    ),
+    "GW002-run-git-fetch-pull-expression-with-or": (
+        "GW002",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: git fetch origin ${{ inputs.a || inputs.b }} pull/7/head:pr  # HERE
+        """,
+    ),
     "GW002-run-git-checkout-head-sha": (
         "GW002",
         """
@@ -218,6 +240,31 @@ POSITIVE = {
 }
 
 NEGATIVE = {
+    **{
+        f"GW002-pull-path-in-later-command-{name}": (
+            "GW002",
+            f"""
+            on: pull_request_target
+            jobs:
+              j:
+                runs-on: ubuntu-latest
+                steps:
+                  - run: git fetch --depth=1 origin main {separator} echo pull/1 > x
+            """,
+        )
+        for name, separator in [("and", "&&"), ("semicolon", ";"), ("pipe", "|"), ("or", "||")]
+    },
+    "GW002-pr-sha-in-later-command-after-fetch": (
+        "GW002",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: git fetch origin main && echo ${{ github.event.pull_request.head.sha }}
+        """,
+    ),
     "GW002-issue-comment-no-ref": (
         "GW002",
         """
