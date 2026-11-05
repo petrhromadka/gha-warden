@@ -65,15 +65,35 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _display_path(path: Path) -> str:
+def _repo_root(path: Path) -> Path | None:
+    """The closest ancestor of `path` holding a `.git` entry (a directory, or a worktree file)."""
+    return next((parent for parent in path.parents if (parent / ".git").exists()), None)
+
+
+def _relative_to_cwd(path: Path) -> str:
+    resolved = path.resolve()
     try:
-        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+        return resolved.relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
-        return path.as_posix()
+        return resolved.as_posix()
+
+
+def _display_path(path: Path) -> str:
+    """Path used in reports: relative to the repository root, else to the cwd, else absolute.
+
+    GitHub code scanning and annotations resolve paths against the repository root, which is
+    not necessarily the directory gha-warden runs in.
+    """
+    resolved = path.resolve()
+    root = _repo_root(resolved)
+    if root is not None:
+        return resolved.relative_to(root).as_posix()
+    return _relative_to_cwd(path)
 
 
 def _use_color(args: argparse.Namespace) -> bool:
-    return not (args.no_color or args.output or "NO_COLOR" in os.environ) and sys.stdout.isatty()
+    # no-color.org: only a non-empty NO_COLOR disables color.
+    return not (args.no_color or args.output or os.environ.get("NO_COLOR")) and sys.stdout.isatty()
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -97,7 +117,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     errors: list[str] = []
     for path in paths:
         if not path.exists():
-            errors.append(f"{path}: no such file or directory")
+            errors.append(f"{path.as_posix()}: no such file or directory")
     files = collect_files(p for p in paths if p.exists())
 
     if args.min_severity is not None:
@@ -108,7 +128,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     scanned = 0
     for file in files:
         display = _display_path(file)
-        if config.is_excluded(display):
+        if config.is_excluded(_relative_to_cwd(file)):
             continue
         try:
             workflow = Workflow(display, file.read_text(encoding="utf-8"))
@@ -134,7 +154,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         report = format_text(findings, files_scanned=scanned, color=_use_color(args))
     if args.output:
-        Path(args.output).write_text(report, encoding="utf-8")
+        # Always LF, also on Windows, so a report is byte-identical on every platform.
+        with Path(args.output).open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(report)
     else:
         sys.stdout.write(report)
 

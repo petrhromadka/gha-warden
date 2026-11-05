@@ -29,14 +29,14 @@ _EXPOSURES = (
 
 
 def _expressions(text: str) -> Iterator[tuple[int, str]]:
-    """Yield (line offset, expression) for each `${{ }}` in `text`.
+    """Yield (character offset, expression) for each `${{ }}` in `text`.
 
     `secrets['NAME']` is rewritten to `secrets.NAME` and string literals are blanked, so the
     patterns see one spelling and never match text inside a quoted string.
     """
     for match in _EXPRESSION.finditer(text):
         expression = _QUOTED_NAME_INDEX.sub(r".\1", match.group(1))
-        yield text.count("\n", 0, match.start()), _STRING_LITERAL.sub("''", expression)
+        yield match.start(), _STRING_LITERAL.sub("''", expression)
 
 
 def _yields_boolean(expression: str) -> bool:
@@ -87,22 +87,23 @@ class SecretsContextExposed(Rule):
     def check(self, workflow: Workflow) -> Iterable[Finding]:
         for path, text in _strings(workflow.data, ()):
             reported: set[tuple[int, str]] = set()
-            for line_offset, expression in _expressions(text):
+            for offset, expression in _expressions(text):
+                line = workflow.locate(path, offset=offset)[0]
                 for pattern, message in _EXPOSURES:
-                    if pattern.search(expression) and (line_offset, message) not in reported:
-                        reported.add((line_offset, message))
-                        yield self.finding(workflow, path, message, line_offset=line_offset)
+                    if pattern.search(expression) and (line, message) not in reported:
+                        reported.add((line, message))
+                        yield self.finding(workflow, path, message, offset=offset)
         for step in workflow.steps():
             if step.run is None:
                 continue
-            for line_offset, expression in _expressions(step.run):
+            for offset, expression in _expressions(step.run):
                 if match := _DUMPED_GITHUB.search(expression):
                     dumped = "".join(match.group(0).split())
                     yield self.finding(
                         workflow,
                         (*step.path, "run"),
                         f"{dumped} pastes attacker-controlled event data into a run script",
-                        line_offset=line_offset,
+                        offset=offset,
                     )
 
 
@@ -124,19 +125,20 @@ class SecretInRunScript(Rule):
             if step.run is None:
                 continue
             reported: set[tuple[int, str]] = set()
-            for line_offset, expression in _expressions(step.run):
+            for offset, expression in _expressions(step.run):
                 if _yields_boolean(expression):
                     continue
+                line = workflow.locate((*step.path, "run"), offset=offset)[0]
                 refs = [f"secrets.{m.group(1)}" for m in _NAMED_SECRET.finditer(expression)]
                 if _GITHUB_TOKEN.search(expression):
                     refs.append("github.token")
                 for ref in refs:
-                    if (line_offset, ref.lower()) in reported:
+                    if (line, ref.lower()) in reported:
                         continue
-                    reported.add((line_offset, ref.lower()))
+                    reported.add((line, ref.lower()))
                     yield self.finding(
                         workflow,
                         (*step.path, "run"),
                         f"'{ref}' is interpolated into a run script instead of passed via env:",
-                        line_offset=line_offset,
+                        offset=offset,
                     )

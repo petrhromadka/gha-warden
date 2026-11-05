@@ -126,13 +126,14 @@ class Workflow:
                     yield (*base, name), block
 
     def locate(
-        self, path: Sequence[PathPart], *, key: bool = False, line_offset: int = 0
+        self, path: Sequence[PathPart], *, key: bool = False, offset: int = 0
     ) -> tuple[int, int]:
         """1-based (line, column) of the node at `path`.
 
-        With `key=True` the position of the mapping key is returned. `line_offset` selects a
-        line inside a literal block scalar (`run: |`). A path that does not exist falls back to
-        its nearest existing ancestor.
+        With `key=True` the position of the mapping key is returned. `offset` is a character
+        index into the node's string value; it selects the line inside a multi-line scalar
+        (`run: |`, `run: >`, or a quoted or plain scalar that spans lines). A path that does
+        not exist falls back to its nearest existing ancestor.
         """
         parts = tuple(path)
         found = self._resolve(parts)
@@ -145,13 +146,54 @@ class Workflow:
         if key and key_node is not None:
             row, column = _start(key_node)
             return row + 1, column + 1
+        if isinstance(value_node, ScalarNode):
+            inside = self._locate_in_scalar(value_node, offset)
+            if inside is not None:
+                return inside
         row, column = _start(value_node)
-        if isinstance(value_node, ScalarNode) and value_node.style in ("|", ">"):
-            offset = line_offset if value_node.style == "|" else 0
-            line = min(row + 2 + offset, max(len(self.lines), 1))
-            source = self.lines[line - 1] if self.lines else ""
-            return line, len(source) - len(source.lstrip()) + 1
         return row + 1, column + 1
+
+    def _indent_of(self, line: int) -> tuple[int, int]:
+        """Clamp 1-based `line` to the file and return it with its indentation column."""
+        line = min(line, max(len(self.lines), 1))
+        source = self.lines[line - 1] if self.lines else ""
+        return line, len(source) - len(source.lstrip()) + 1
+
+    def _locate_in_scalar(self, node: ScalarNode, offset: int) -> tuple[int, int] | None:
+        """Position of character `offset` of a multi-line scalar's value, if it can be found."""
+        row, column = _start(node)
+        end_row = node.end_mark.line if node.end_mark else row
+        text = node.value
+        if node.style == "|":
+            # Literal blocks keep their line breaks, so the value line is the source line.
+            return self._indent_of(row + 2 + text.count("\n", 0, offset))
+        block = node.style == ">"
+        if end_row == row and not block:
+            return None
+        # Folded, quoted and plain scalars fold line breaks into spaces, so the value line says
+        # nothing about the source line. Find the n-th occurrence of the word at `offset` in the
+        # source lines of the scalar instead, n being how often the word occurs before it.
+        start = offset
+        while start < len(text) and text[start].isspace():
+            start += 1
+        end = start
+        while end < len(text) and not text[end].isspace():
+            end += 1
+        word = text[start:end]
+        if word:
+            remaining = text.count(word, 0, start)
+            first = row + 1 if block else row
+            for index in range(first, min(end_row, len(self.lines) - 1) + 1):
+                source = self.lines[index]
+                at = column if index == row else 0
+                while (at := source.find(word, at)) != -1:
+                    if remaining == 0:
+                        if index == row:
+                            return row + 1, at + 1
+                        return self._indent_of(index + 1)
+                    remaining -= 1
+                    at += len(word)
+        return self._indent_of(row + 2) if block else None
 
     def _resolve(self, path: NodePath) -> tuple[Node | None, Node] | None:
         node = self.root

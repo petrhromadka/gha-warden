@@ -91,6 +91,14 @@ def format_json(findings: Sequence[Finding], *, files_scanned: int) -> str:
 
 
 def format_sarif(findings: Sequence[Finding]) -> str:
+    """SARIF 2.1.0 for GitHub code scanning.
+
+    Severity is split between rule and result, as GitHub documents it ("SARIF support for code
+    scanning"): `security-severity` is only read from the rule (reportingDescriptor), so it holds
+    the rule's own severity, which is the highest a finding of that rule can have. A finding
+    that is less severe than its rule (GW003 on an `actions/*` action is medium, not high) says
+    so through the result's `level`, which GitHub documents as overriding the rule default.
+    """
     rule_index = {rule.id: index for index, rule in enumerate(ALL_RULES)}
     rules = [
         {
@@ -121,7 +129,6 @@ def format_sarif(findings: Sequence[Finding]) -> str:
                     }
                 }
             ],
-            "properties": {"security-severity": _SECURITY_SEVERITY[f.severity]},
         }
         for f in findings
     ]

@@ -59,7 +59,7 @@ gha-warden [PATHS...] [--format text|json|sarif|github|markdown]
 | `--ignore RULE_ID` | Skip a rule entirely. Repeat the option or separate IDs with commas (`--ignore GW005,GW003`); IDs are case-insensitive and an unknown ID is a usage error. |
 | `--config PATH` | Read settings from this TOML file instead of `.gha-warden.toml`. |
 | `--output FILE` | Write the report to a file instead of stdout. |
-| `--no-color` | Disable colors. Colors are only used when stdout is a terminal, and never with `--output`; the `NO_COLOR` environment variable is respected too. |
+| `--no-color` | Disable colors. Colors are only used when stdout is a terminal, and never with `--output`; a non-empty `NO_COLOR` environment variable disables them too. |
 | `--version` | Print the version and exit. |
 
 ## Example output
@@ -219,6 +219,13 @@ Add a YAML comment on the line of the finding:
 | 0 | No findings at or above `--min-severity` |
 | 1 | One or more findings |
 | 2 | Usage error, or a path that does not exist or a file that cannot be read or parsed (the remaining files are still scanned and reported) |
+
+## Documentation
+
+- [Rule reference](docs/rules/README.md): one page per rule with a vulnerable and a fixed example and references.
+- [Real-world scan](docs/real-world-scan.md): results and false-positive triage on 1068 workflow files from 42 popular repositories.
+- [Regression corpus](corpus/README.md): minimal reproductions of 13 publicly documented incidents and advisories, checked in CI.
+- [Threat model](docs/threat-model.md) and [supply-chain notes](docs/supply-chain.md): what gha-warden covers, and how its own releases are built and attested.
 
 ## Development
 

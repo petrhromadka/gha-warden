@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -107,6 +108,21 @@ def test_sarif_format(write_workflow: WriteWorkflow, capsys: pytest.CaptureFixtu
         location = result["locations"][0]["physicalLocation"]
         assert location["artifactLocation"]["uri"].endswith("wf.yml")
         assert location["region"]["startLine"] >= 1
+
+
+def test_sarif_keeps_per_finding_severity_in_result_level(
+    write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, out, _ = run(capsys, "--format", "sarif", str(write_workflow(VULNERABLE)))
+    results = json.loads(out)["runs"][0]["results"]
+    # GitHub reads `security-severity` from the rule only, so results must not carry one.
+    assert all("security-severity" not in result.get("properties", {}) for result in results)
+    gw003 = sorted(
+        (r["locations"][0]["physicalLocation"]["region"]["startLine"], r["level"])
+        for r in results
+        if r["ruleId"] == "GW003"
+    )
+    assert gw003 == [(7, "warning"), (8, "error")]
 
 
 def test_sarif_without_findings_is_valid(
@@ -238,3 +254,87 @@ def test_output_file(
     assert code == 1
     assert out == ""
     assert json.loads(target.read_text(encoding="utf-8"))["version"] == "2.1.0"
+    assert b"\r\n" not in target.read_bytes()
+
+
+def test_directory_scan_skips_yaml_that_is_not_a_workflow(
+    write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write_workflow("- id: hook\n  entry: x\n", ".pre-commit-hooks.yaml")
+    write_workflow("version: 2\nupdates: []\n", ".github/dependabot.yml")
+    write_workflow("name: Bug\nbody: []\n", ".github/ISSUE_TEMPLATE/bug.yml")
+    write_workflow(CLEAN, "ci.yml")
+    write_workflow("name: a\nruns:\n  using: node20\n  main: x.js\n", "tool/action.yml")
+    path = write_workflow(CLEAN, "other.yml").parent
+    code, out, _ = run(capsys, "--format", "json", str(path))
+    assert code == 0
+    assert json.loads(out)["summary"]["files_scanned"] == 3
+
+
+def test_explicit_non_workflow_file_is_still_an_error(
+    write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, _, err = run(capsys, str(write_workflow("- id: hook\n", ".pre-commit-hooks.yaml")))
+    assert code == 2
+    assert "expected a mapping at the top level" in err
+
+
+def test_report_paths_are_relative_to_the_repository_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    write_workflow: WriteWorkflow,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "repo" / ".git").mkdir(parents=True)
+    write_workflow(VULNERABLE, "repo/.github/workflows/ci.yml")
+    monkeypatch.chdir(tmp_path / "repo" / ".github")
+    _, out, _ = run(capsys, "--format", "json", "workflows/ci.yml")
+    assert {f["path"] for f in json.loads(out)["findings"]} == {".github/workflows/ci.yml"}
+
+
+def test_report_paths_outside_a_repository_are_relative_to_the_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    write_workflow: WriteWorkflow,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    write_workflow(VULNERABLE, "sub/ci.yml")
+    monkeypatch.chdir(tmp_path)
+    _, out, _ = run(capsys, "--format", "json", "sub/ci.yml")
+    assert {f["path"] for f in json.loads(out)["findings"]} == {"sub/ci.yml"}
+
+
+def test_error_messages_use_forward_slashes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, _, err = run(capsys, str(tmp_path / "missing" / "wf.yml"))
+    assert "\\" not in err
+
+
+@pytest.mark.parametrize(
+    ("isatty", "no_color", "args", "colored"),
+    [
+        (True, None, [], True),
+        (False, None, [], False),
+        (True, "1", [], False),
+        (True, "", [], True),
+        (True, None, ["--no-color"], False),
+    ],
+    ids=["tty", "pipe", "NO_COLOR-set", "NO_COLOR-empty", "flag"],
+)
+def test_color_follows_tty_and_no_color(
+    monkeypatch: pytest.MonkeyPatch,
+    write_workflow: WriteWorkflow,
+    capsys: pytest.CaptureFixture[str],
+    *,
+    isatty: bool,
+    no_color: str | None,
+    args: list[str],
+    colored: bool,
+) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    if no_color is not None:
+        monkeypatch.setenv("NO_COLOR", no_color)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: isatty)
+    _, out, _ = run(capsys, *args, str(write_workflow(VULNERABLE)))
+    assert ("\033[" in out) is colored

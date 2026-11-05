@@ -35,27 +35,49 @@ class UnsecureCommands(Rule):
             )
 
 
-_CREDENTIAL_KEY = re.compile(
-    r"token|password|passwd|secret|api[_-]?key|private[_-]?key|access[_-]?key|credential",
-    re.IGNORECASE,
+# A key is credential-like only if it ENDS with a credential word, as a whole segment
+# (`DB_PASSWORD`, `githubToken`, `AWS_SECRET_ACCESS_KEY`). `TOKEN_USAGE_TITLE`, `max-tokens`
+# and `secret-scanning` merely mention one.
+_CREDENTIAL_ENDING = re.compile(
+    r"(?:^|-)(?:token|passwords?|passwd|secrets?|credentials?|apikey|accesskey|privatekey"
+    r"|(?:api|access|private|secret)-key)$"
 )
-# Keys such as `token-file` or `secret_name` hold a reference to a credential, not the credential.
-_REFERENCE_SUFFIXES = frozenset({"file", "path", "url", "name", "type", "id", "dir", "location"})
-_NOT_A_SECRET = frozenset({"true", "false", "null", "none"})
+_PASSWORD_ENDING = re.compile(r"(?:^|-)(?:passwords?|passwd)$")
+_NOT_A_SECRET = frozenset(
+    {"true", "false", "null", "none", "yes", "no", "on", "off", "enabled", "disabled", "auto"}
+)
+_MIN_LENGTH = 8  # shorter values are not credentials, except for password-like keys
+# `CI_DEPLOY_PASSWORD` or `A_NAME,B_NAME`: the name of an environment variable (or a list of
+# names), which tells a tool where to look and is not the credential itself.
+_ENV_NAME = re.compile(r"[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+")
+_NAME_LIST = re.compile(r"[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)+")
 
 
 def _is_credential_literal(key: str, value: object) -> bool:
-    if not isinstance(value, str) or not _CREDENTIAL_KEY.search(key):
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
         return False
-    if re.split(r"[-_]", key.lower())[-1] in _REFERENCE_SUFFIXES:
-        return False
-    text = value.strip()
-    return (
-        bool(text)
-        and "${{" not in text
-        and not text.startswith("$")
-        and (text.lower() not in _NOT_A_SECRET)
+    # Split camelCase, then treat `_` and `.` like `-` so each credential word is a whole segment.
+    normalized = (
+        re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", key).lower().replace("_", "-").replace(".", "-")
     )
+    if not _CREDENTIAL_ENDING.search(normalized):
+        return False
+    text = str(value)
+    if "\n" in text:
+        return False  # a multi-line value is a block of text, not a single credential
+    text = text.strip()
+    if (
+        not text
+        or "${{" in text
+        or text.startswith("$")
+        or text.lower() in _NOT_A_SECRET
+        # A multi-line value or one with spaces is prose or a mapping of names, not a credential.
+        or any(char.isspace() for char in text)
+        or _ENV_NAME.fullmatch(text)
+        or _NAME_LIST.fullmatch(text)
+    ):
+        return False
+    return len(text) >= _MIN_LENGTH or bool(_PASSWORD_ENDING.search(normalized))
 
 
 class HardcodedCredential(Rule):

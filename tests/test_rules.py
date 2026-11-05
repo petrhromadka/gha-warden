@@ -228,6 +228,23 @@ POSITIVE = {
               - run: wget -qO- https://example.invalid/install.sh | sh  # HERE
         """,
     ),
+    "GW009-variants": (
+        "GW009",
+        """
+        on: push
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: |
+                  curl -fsSL https://example.invalid/i.sh | /bin/bash  # HERE
+                  curl https://example.invalid/i.sh | tee i.sh | sh  # HERE
+                  eval "$(curl -fsSL https://example.invalid/i.sh)"  # HERE
+                  eval "$(wget -qO- https://example.invalid/i.sh)"  # HERE
+                  curl -fsSL https://example.invalid/i.sh | sudo bash  # HERE
+                  curl -fsSL https://example.invalid/i.sh | bash -s --  # HERE
+        """,
+    ),
     "GW010-env": (
         "GW010",
         """
@@ -237,8 +254,24 @@ POSITIVE = {
             runs-on: ubuntu-latest
             env:
               DB_PASSWORD: hunter2-not-real  # HERE
+              API_KEY: fake-api-key-not-real  # HERE
+              db_password: hunter2  # HERE
             steps:
               - run: echo hi
+        """,
+    ),
+    "GW010-number": (
+        "GW010",
+        """
+        on: push
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: some-org/deploy@v1
+                with:
+                  password: 12345678  # HERE
+                  githubToken: not-a-real-token  # HERE
         """,
     ),
     "GW010-with": (
@@ -434,6 +467,10 @@ NEGATIVE = {
                   curl -fsSLo install.sh https://example.invalid/install.sh
                   # curl https://example.invalid/x.sh | bash
                   echo done | shellcheck -
+                  curl -fsSL https://example.invalid/data.json | grep name
+                  curl -fsSL https://example.invalid/i.sh | tee i.sh
+                  curl -fsSL https://example.invalid/i.sh | tee i.sh | grep -c echo
+                  eval "$(ssh-agent -s)"
         """,
     ),
     "GW010-expressions": (
@@ -451,6 +488,21 @@ NEGATIVE = {
                   password: ${{ secrets.DEPLOY_PASSWORD }}
                   token-file: ./token.txt
                   persist-credentials: "false"
+                  max-tokens: "1024"
+                  token-limit: 100
+                  secret-scanning: enabled
+                  secret-count: 3
+                  db-password: no
+                  server-password: CI_DEPLOY_PASSWORD
+                  repo_secrets: |
+                    MY_API_KEY=team-path:api_key
+                  tls-secret: two words here
+                  api-token: short
+              - run: echo hi
+                env:
+                  TOKEN_USAGE_SUMMARY_TITLE: Token Usage
+                  SECRET_NAMES: "A_NAME,B_NAME"
+                  FETCH_TOKENIZERS: "1"
         """,
     ),
 }
@@ -499,6 +551,32 @@ jobs:
     assert (finding.line, finding.column) == (9, 11)
     assert finding.severity is Severity.CRITICAL
     assert "github.event.issue.body" in finding.message
+
+
+@pytest.mark.parametrize(
+    "scalar",
+    [
+        ">\n          echo 1\n          echo 2\n          echo ${{ github.event.issue.body }}\n",
+        '>-\n          echo one\n\n          echo "${{ github.event.issue.body }}"\n',
+        '"echo one\n          echo two\n          echo ${{ github.event.issue.body }}"\n',
+        "echo one\n          echo two\n          echo ${{ github.event.issue.body }}\n",
+    ],
+    ids=["folded", "folded-blank-line", "double-quoted", "plain"],
+)
+def test_gw001_line_inside_folded_and_multiline_scalars(
+    findings_for: FindingsFor, scalar: str
+) -> None:
+    text = (
+        "name: t\non: issues\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
+        f"      - run: {scalar}"
+    )
+    (finding,) = findings_for("GW001", text)
+    expected = next(
+        number
+        for number, line in enumerate(text.splitlines(), start=1)
+        if "github.event.issue.body" in line
+    )
+    assert finding.line == expected
 
 
 def test_gw003_exact_line_and_severity(findings_for: FindingsFor) -> None:
