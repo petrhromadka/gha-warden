@@ -36,20 +36,45 @@ class UnsecureCommands(Rule):
 
 
 _CREDENTIAL_KEY = re.compile(
-    r"token|password|passwd|secret|api[_-]?key|private[_-]?key|access[_-]?key|credential",
-    re.IGNORECASE,
+    r"(?<![a-z0-9])(?:token|passwords?|passwd|secrets?|api-?key|private-?key|access-?key"
+    r"|credentials?)(?![a-z0-9])"
 )
 # Keys such as `token-file` or `secret_name` hold a reference to a credential, not the credential.
 _REFERENCE_SUFFIXES = frozenset({"file", "path", "url", "name", "type", "id", "dir", "location"})
-_NOT_A_SECRET = frozenset({"true", "false", "null", "none"})
+# Keys such as `max-tokens`, `token-limit` or `secret-scanning` configure a number or a feature.
+_SETTING_WORDS = frozenset(
+    {
+        "max",
+        "min",
+        "limit",
+        "limits",
+        "size",
+        "count",
+        "length",
+        "scan",
+        "scanning",
+        "ttl",
+        "timeout",
+    }
+)
+_NOT_A_SECRET = frozenset(
+    {"true", "false", "null", "none", "yes", "no", "on", "off", "enabled", "disabled", "auto"}
+)
 
 
 def _is_credential_literal(key: str, value: object) -> bool:
-    if not isinstance(value, str) or not _CREDENTIAL_KEY.search(key):
+    if isinstance(value, bool) or not isinstance(value, str | int | float):
         return False
-    if re.split(r"[-_]", key.lower())[-1] in _REFERENCE_SUFFIXES:
+    # Split camelCase, then treat `_` and `.` like `-` so each credential word is a whole segment.
+    normalized = (
+        re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "-", key).lower().replace("_", "-").replace(".", "-")
+    )
+    segments = normalized.split("-")
+    if not _CREDENTIAL_KEY.search(normalized):
         return False
-    text = value.strip()
+    if segments[-1] in _REFERENCE_SUFFIXES or _SETTING_WORDS.intersection(segments):
+        return False
+    text = str(value).strip()
     return (
         bool(text)
         and "${{" not in text

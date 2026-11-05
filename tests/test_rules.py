@@ -258,6 +258,20 @@ POSITIVE = {
               - run: echo hi
         """,
     ),
+    "GW010-number": (
+        "GW010",
+        """
+        on: push
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: some-org/deploy@v1
+                with:
+                  password: 12345678  # HERE
+                  githubToken: not-a-real-token  # HERE
+        """,
+    ),
     "GW010-with": (
         "GW010",
         """
@@ -472,6 +486,11 @@ NEGATIVE = {
                   password: ${{ secrets.DEPLOY_PASSWORD }}
                   token-file: ./token.txt
                   persist-credentials: "false"
+                  max-tokens: "1024"
+                  token-limit: 100
+                  secret-scanning: enabled
+                  secret-count: 3
+                  password: no
         """,
     ),
 }
