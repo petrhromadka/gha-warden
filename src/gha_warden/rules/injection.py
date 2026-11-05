@@ -15,6 +15,8 @@ _UNTRUSTED = re.compile(
     r"(?<![\w.-])(?:"
     r"github\.event\.issue\.(?:title|body)"
     r"|github\.event\.pull_request\.(?:title|body|head\.ref|head\.label)"
+    r"|github\.event\.pull_request\.head\.repo\.(?:default_branch|description|homepage)"
+    r"|github\.event\.changes\.(?:title|body)\.from"
     r"|github\.event\.comment\.body"
     r"|github\.event\.review\.body"
     r"|github\.event\.review_comment\.body"
@@ -23,7 +25,12 @@ _UNTRUSTED = re.compile(
     rf"|github\.event\.head_commit\.{_AUTHOR}"
     r"|github\.head_ref"
     r"|github\.event\.discussion\.(?:title|body)"
-    rf"|github\.event\.workflow_run\.(?:head_branch|head_commit\.{_AUTHOR})"
+    rf"|github\.event\.workflow_run\.(?:head_branch|display_title|head_commit\.{_AUTHOR})"
+    r"|github\.event\.workflow_run\.head_repository\.(?:description|homepage)"
+    rf"|github\.event\.merge_group\.head_commit\.{_AUTHOR}"
+    # A whole event object serialised into the script carries every text field in it.
+    r"|toJSON\(\s*github\.event(?:\.(?:issue|pull_request|comment|review|review_comment"
+    r"|discussion|head_commit|commits|workflow_run|changes|merge_group))?\s*\)"
     r")(?![\w-])",
     re.IGNORECASE,
 )

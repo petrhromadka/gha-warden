@@ -64,6 +64,25 @@ POSITIVE = {
               - run: echo "${{ github.event.commits[0].message }}"  # HERE
         """,
     ),
+    "GW001-recall-contexts": (
+        "GW001",
+        """
+        on: [pull_request_target, workflow_run, issues, merge_group]
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: echo "${{ github.event.workflow_run.display_title }}"  # HERE
+              - run: echo "${{ github.event.changes.title.from }}"  # HERE
+              - run: echo "${{ github.event.changes.body.from }}"  # HERE
+              - run: echo "${{ github.event.pull_request.head.repo.default_branch }}"  # HERE
+              - run: echo "${{ github.event.pull_request.head.repo.description }}"  # HERE
+              - run: echo "${{ github.event.workflow_run.head_repository.description }}"  # HERE
+              - run: echo "${{ github.event.merge_group.head_commit.message }}"  # HERE
+              - run: echo '${{ toJSON(github.event.issue) }}'  # HERE
+              - run: echo '${{ toJson(github.event) }}'  # HERE
+        """,
+    ),
     "GW002-pull-request-target": (
         "GW002",
         """
@@ -324,6 +343,19 @@ NEGATIVE = {
             runs-on: ubuntu-latest
             steps:
               - run: echo "${{ contains(github.event.issue.title, 'bug') }}"
+        """,
+    ),
+    "GW001-trusted-object-fields": (
+        "GW001",
+        """
+        on: [pull_request_target, issues]
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: echo "${{ github.event.issue.user.login }} ${{ github.event.issue.number }}"
+              - run: echo '${{ toJSON(github.event.pull_request.labels) }}'
+              - run: echo '${{ toJSON(github.event.repository) }}'
         """,
     ),
     "GW002-no-ref": (
