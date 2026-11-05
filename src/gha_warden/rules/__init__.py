@@ -8,6 +8,7 @@ from gha_warden.rules.permissions import (
     SelfHostedOnPullRequest,
 )
 from gha_warden.rules.pinning import CheckoutPersistsCredentials, UnpinnedAction
+from gha_warden.rules.poisoning import ArtifactPoisoning, CachePoisoning
 from gha_warden.rules.secrets import HardcodedCredential, UnsecureCommands
 
 ALL_RULES: list[Rule] = [
@@ -21,6 +22,8 @@ ALL_RULES: list[Rule] = [
     UnsecureCommands(),
     RemoteScriptPipe(),
     HardcodedCredential(),
+    CachePoisoning(),
+    ArtifactPoisoning(),
 ]
 
 __all__ = ["ALL_RULES", "Rule"]

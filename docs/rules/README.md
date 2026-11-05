@@ -15,6 +15,8 @@ example, and how to suppress a finding.
 | [GW008](GW008.md) | `ACTIONS_ALLOW_UNSECURE_COMMANDS` enabled | high |
 | [GW009](GW009.md) | Remote script piped to a shell | medium |
 | [GW010](GW010.md) | Hardcoded credential in `env:` or `with:` | high |
+| [GW011](GW011.md) | Cache poisoning in privileged workflow | medium |
+| [GW012](GW012.md) | Artifact poisoning | high |
 
 ## Suppressing a finding
 
