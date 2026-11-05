@@ -34,7 +34,7 @@ Issues = "https://github.com/petrhromadka/gha-warden/issues"
 gha-warden = "gha_warden.cli:main"
 
 [build-system]
-requires = ["uv_build>=0.12.23,<0.13.0"]
+requires = ["uv_build>=0.12.23,<0.14.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
@@ -63,3 +63,7 @@ testpaths = ["tests"]
 
 [tool.ruff.format]
 line-ending = "lf"
+
+[tool.ty.src]
+# scripts/ holds PEP 723 scripts whose dependencies (rich) are not project dependencies.
+include = ["src", "tests"]
