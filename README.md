@@ -103,6 +103,8 @@ examples/vulnerable/script-injection.yml
 | GW016 | low | `${{ secrets.NAME }}` or `${{ github.token }}` used directly inside a `run:` script | The value is written into the generated script, can appear in process listings and traces, and breaks on special characters | Set it in `env:` and use `$NAME` in the script |
 | GW017 | high | `pull_request_target`, `workflow_run` or `issue_comment` workflow with an `if:` on a job or step that trusts `github.actor == '...[bot]'` (for example `dependabot[bot]`) or `github.triggering_actor` | The actor is whoever acted last on the PR, not its author; an attacker can make Dependabot the actor on a PR they control by asking it to rebase | Check `github.event.pull_request.user.login` (the PR author) or use `dependabot/fetch-metadata` |
 
+GW002, GW011 and GW012 are not reported for a `workflow_run` workflow when every upstream workflow it names is scanned in the same run and none of them can be started by untrusted input; see [GW002](docs/rules/GW002.md#cross-workflow-analysis).
+
 ## Output formats
 
 - `text`: grouped by file, colored severity, summary line.

@@ -56,6 +56,24 @@ def _triggers(on: object) -> frozenset[str]:
     return frozenset()
 
 
+# Events that a stranger can cause: a fork pull request, an issue, a comment, a star or a fork.
+UNTRUSTED_TRIGGERS = frozenset(
+    {
+        "pull_request",
+        "pull_request_target",
+        "issue_comment",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "issues",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "watch",
+    }
+)
+_GLOB_CHARS = frozenset("*?[")
+
+
 def _as_dict(value: object) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
@@ -89,6 +107,42 @@ class Workflow:
         self.data: dict[str, Any] = data
         self.root: Node | None = node
         self.triggers = _triggers(data.get("on"))
+        self.name = _run_name(data.get("name"), path)
+        # Workflows scanned together, by name; set by `link_workflows`.
+        self.scanned: dict[str, list[Workflow]] = {}
+
+    def privileged_triggers(self, candidates: frozenset[str]) -> frozenset[str]:
+        """The triggers in `candidates` that give untrusted input a privileged run of this file.
+
+        `workflow_run` is dropped when every upstream workflow it names was scanned together with
+        this one and none of them can be started by untrusted input, so no fork can reach it.
+        """
+        triggers = self.triggers & candidates
+        if "workflow_run" in triggers and not self._started_by_untrusted(set()):
+            triggers -= {"workflow_run"}
+        return triggers
+
+    def _started_by_untrusted(self, visiting: set[int]) -> bool:
+        """Whether untrusted input can start this workflow, or this is not known.
+
+        Only the `workflow_run` trigger is followed upstream. A workflow that is already being
+        visited adds nothing new (a cycle), so it counts as not reachable.
+        """
+        if self.triggers & UNTRUSTED_TRIGGERS:
+            return True
+        if "workflow_run" not in self.triggers or id(self) in visiting:
+            return False
+        visiting.add(id(self))
+        names = _as_dict(_as_dict(self.data.get("on")).get("workflow_run")).get("workflows")
+        if not isinstance(names, list) or not names:
+            return True
+        for name in names:
+            upstream = self.scanned.get(name) if isinstance(name, str) else None
+            if not upstream or _GLOB_CHARS & set(str(name)):
+                return True
+            if any(workflow._started_by_untrusted(visiting) for workflow in upstream):
+                return True
+        return False
 
     def jobs(self) -> list[Job]:
         return [
@@ -215,6 +269,28 @@ class Workflow:
             else:
                 return None
         return key_node, node
+
+
+def _run_name(name: object, path: str) -> str:
+    """The name GitHub shows for a run and matches in `workflow_run.workflows`.
+
+    A workflow without a `name:` is known by its file path in the repository.
+    """
+    if isinstance(name, str) and name:
+        return name
+    posix = path.replace("\\", "/")
+    marker = ".github/workflows/"
+    return posix[posix.rfind(marker) :] if marker in posix else posix
+
+
+def link_workflows(workflows: Sequence[Workflow]) -> None:
+    """Let each workflow see the others scanned with it, for `workflow_run` upstream lookups."""
+    scanned: dict[str, list[Workflow]] = {}
+    for workflow in workflows:
+        if "on" in workflow.data:
+            scanned.setdefault(workflow.name, []).append(workflow)
+    for workflow in workflows:
+        workflow.scanned = scanned
 
 
 def _start(node: Node) -> tuple[int, int]:
