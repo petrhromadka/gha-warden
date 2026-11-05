@@ -241,6 +241,35 @@ jobs:
 Scanning the 1068 files again after the GW012 fix: 3165 findings in total
 (3166 before). GW012 went from 5 to 4; no other rule changed.
 
+### GW012 data flow (2026-11-05)
+
+GW012 now follows the download destination through each script (see
+[GW012](rules/GW012.md#which-files-count-as-downloaded)): only reads inside
+the download directory count, path variables and `env:` entries are
+resolved, and `while read` loops, the rest of a `gh run download` step,
+`actions/github-script` and running checked-out files after a download to
+the workspace root are new. The same 1068 files were scanned with
+`--format json` before and after the change.
+
+Before the change the scan had 3 GW012 findings, not 4: the class 2 finding
+above is no longer reported because of the cross-workflow `workflow_run`
+analysis (its upstream workflow was scanned and cannot be started by
+untrusted input). With that filter turned off, the class 2 finding appears
+both before and after this change. Total findings: 3164 before and after; no
+other rule changed.
+
+| # | Before | After | Class | Verdict |
+|---|:--:|:--:|-------|---------|
+| 1 | yes | yes | Artifact content written to `$GITHUB_OUTPUT` with `jq -r`; the artifact is made by a `pull_request` workflow that runs pull request code (class 1 above). | TP |
+| 2 | yes | yes | Artifact downloaded to the workspace root, `jq` writes every key to `$GITHUB_OUTPUT`; the producer runs no pull request code and the job requires a non-fork run (class 3 above). | D |
+| 3 | yes | no | The file written to `$GITHUB_OUTPUT` is produced by the job, outside the `--dir` of the download (class 5 above, the known false positive). The artifact values themselves are read into variables and checked with anchored regular expressions before use. | FP, fixed |
+| 4 | no | yes | Artifact downloaded to the workspace root right after `actions/checkout`, then a checked-out script is run with `node ./scripts/...`. A pull request can change the producing workflow and put a file with that path into the artifact; whether the download overwrites the checked-out file was not tested. | TP |
+
+After the change GW012 has 3 findings: 2 TP, 1 D, 0 FP. Recall was not
+measured beyond the new test cases; content passed through a shell variable
+(`PR=$(cat out/pr)`) is still not followed, see
+[the rule's limits](rules/GW012.md#limits).
+
 Not measured: recall of GW011-GW017, and the GW013 findings beyond the 10
 sampled. GW014 and GW015 had no findings, so nothing can be said about their
 precision on real data.
