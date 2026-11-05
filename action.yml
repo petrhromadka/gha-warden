@@ -1,0 +1,87 @@
+name: gha-warden
+description: Static security audit of GitHub Actions workflows, with optional SARIF upload to code scanning.
+author: Petr Hromádka
+branding:
+  icon: shield
+  color: red
+
+inputs:
+  paths:
+    description: Space-separated workflow files or directories to scan.
+    default: .github/workflows
+  min-severity:
+    description: Lowest severity to report (low, medium, high, critical).
+    default: low
+  format:
+    description: Output format (text, json, sarif).
+    default: sarif
+  upload-sarif:
+    description: Upload SARIF results to GitHub code scanning (the calling job needs security-events write).
+    default: "true"
+  fail-on-findings:
+    description: Fail the step when findings at or above min-severity exist.
+    default: "true"
+
+outputs:
+  exit-code:
+    description: Exit code of gha-warden (0 clean, 1 findings).
+    value: ${{ steps.scan.outputs.exit-code }}
+  report-file:
+    description: Path of the report written in the requested format.
+    value: ${{ steps.scan.outputs.report-file }}
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+    - id: scan
+      shell: bash
+      env:
+        GW_PATHS: ${{ inputs.paths }}
+        GW_MIN_SEVERITY: ${{ inputs.min-severity }}
+        GW_FORMAT: ${{ inputs.format }}
+        GW_UPLOAD_SARIF: ${{ inputs.upload-sarif }}
+      run: |
+        set -uo pipefail
+        read -r -a targets <<< "$GW_PATHS"
+        report="${RUNNER_TEMP}/gha-warden-report.${GW_FORMAT}"
+        sarif="${RUNNER_TEMP}/gha-warden.sarif"
+
+        run_scan() {
+          uvx --from "${GITHUB_ACTION_PATH}" gha-warden "${targets[@]}" \
+            --min-severity "$GW_MIN_SEVERITY" --format "$1" --output "$2" --no-color
+        }
+
+        run_scan "$GW_FORMAT" "$report"
+        code=$?
+        if [ "$code" -gt 1 ]; then
+          echo "gha-warden failed with exit code ${code}" >&2
+          exit "$code"
+        fi
+        if [ "$GW_FORMAT" != "sarif" ]; then
+          cat "$report"
+          if [ "$GW_UPLOAD_SARIF" = "true" ]; then
+            run_scan sarif "$sarif" || [ $? -eq 1 ] || exit 2
+          fi
+        else
+          cp "$report" "$sarif"
+        fi
+
+        {
+          echo "exit-code=${code}"
+          echo "report-file=${report}"
+          echo "sarif-file=${sarif}"
+        } >> "$GITHUB_OUTPUT"
+
+    - if: inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      with:
+        sarif_file: ${{ steps.scan.outputs.sarif-file }}
+        category: gha-warden
+
+    - if: inputs.fail-on-findings == 'true' && steps.scan.outputs.exit-code == '1'
+      shell: bash
+      run: |
+        echo "gha-warden reported findings (see the report or code scanning alerts)." >&2
+        exit 1
