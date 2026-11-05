@@ -228,6 +228,7 @@ Add a YAML comment on the line of the finding:
 - [Real-world scan](docs/real-world-scan.md): results and false-positive triage on 1068 workflow files from 42 popular repositories.
 - [Recall benchmark](docs/recall-benchmark.md): missed detections measured against zizmor on the same files, with triage and the fixes that followed.
 - [Regression corpus](corpus/README.md): minimal reproductions of 13 publicly documented incidents and advisories, checked in CI.
+- [Fuzzing](fuzz/README.md): the Atheris coverage-guided fuzz target that CI runs on every pull request and weekly.
 - [Threat model](docs/threat-model.md) and [supply-chain notes](docs/supply-chain.md): what gha-warden covers, and how its own releases are built and attested.
 
 ## Development
