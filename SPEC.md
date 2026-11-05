@@ -13,8 +13,8 @@ injection risks before they ship. Pure static analysis: no network, no tokens.
 ## CLI
 
 ```
-gha-warden [PATHS...] [--format text|json|sarif] [--min-severity low|medium|high|critical]
-           [--ignore RULE_ID ...] [--output FILE] [--no-color]
+gha-warden [PATHS...] [--format text|json|sarif|github|markdown] [--min-severity low|medium|high|critical]
+           [--ignore RULE_ID ...] [--config PATH] [--output FILE] [--no-color]
 ```
 
 - PATHS: files or directories; default `.github/workflows`. Directories are scanned for
@@ -61,6 +61,14 @@ each has `id`, `title`, `severity`, `description`, `remediation`, `check(workflo
 - sarif: SARIF 2.1.0 with `tool.driver.rules` populated from rule metadata
   (`help.text` = remediation, `properties.security-severity` as string: low 3.0, medium 5.0,
   high 7.5, critical 9.5), so GitHub code scanning shows it.
+- github: one `::error|warning|notice file=,line=,col=,title=::message` workflow command per finding
+  (critical/high error, medium warning, low notice), escaped like actions/toolkit.
+- markdown: severity summary table + findings table, for `$GITHUB_STEP_SUMMARY` or PR comments.
+
+## Config file
+
+`.gha-warden.toml` in the current directory, or `--config PATH`: `ignore` (rule IDs),
+`min-severity`, `exclude` (path globs). CLI flags override the config; an invalid config exits 2.
 
 ## Repo extras
 
