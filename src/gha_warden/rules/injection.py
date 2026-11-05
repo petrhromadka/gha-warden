@@ -105,6 +105,7 @@ _UNTRUSTED_CHECKOUT = re.compile(
 )
 _PRIVILEGED_TRIGGERS = frozenset({"pull_request_target", "workflow_run", "issue_comment"})
 _STEP_OUTPUT = re.compile(r"\bsteps\.([\w-]+)\.outputs\.", re.IGNORECASE)
+_JOB_OUTPUT = re.compile(r"\bneeds\.([\w-]+)\.outputs\.([\w-]+)", re.IGNORECASE)
 # A step whose output is the head commit or branch of the pull request (typical for issue_comment).
 _PR_HEAD_RESOLVER = re.compile(
     r"pull-request-comment-branch|\bpulls\.get\b|\bgh\s+pr\s+(?:view|checkout)\b"
@@ -175,10 +176,11 @@ class PwnRequest(Rule):
         if not triggers:
             return
         trigger = sorted(triggers)[0]
+        job_outputs = self._pr_head_job_outputs(workflow)
         resolvers: dict[tuple[str | None, str], str] = {}
         for step in workflow.steps():
             if (step.uses or "").lower().startswith("actions/checkout@"):
-                yield from self._check_checkout(workflow, step, trigger, resolvers)
+                yield from self._check_checkout(workflow, step, trigger, resolvers, job_outputs)
             if step.run is not None:
                 yield from self._check_run(workflow, step, trigger)
             step_id = step.data.get("id")
@@ -191,6 +193,7 @@ class PwnRequest(Rule):
         step: Step,
         trigger: str,
         resolvers: dict[tuple[str | None, str], str],
+        job_outputs: set[tuple[str, str]],
     ) -> Iterator[Finding]:
         for name in ("ref", "repository"):
             value = step.inputs.get(name)
@@ -214,6 +217,39 @@ class PwnRequest(Rule):
                         f"resolves the pull request head, in a '{trigger}' workflow",
                     )
                     break
+            else:
+                for output in _JOB_OUTPUT.finditer(value):
+                    if (output.group(1).lower(), output.group(2).lower()) in job_outputs:
+                        yield self.finding(
+                            workflow,
+                            path,
+                            f"actions/checkout of '{name}' from job '{output.group(1)}', which "
+                            f"resolves the pull request head, in a '{trigger}' workflow",
+                        )
+                        break
+
+    @staticmethod
+    def _pr_head_job_outputs(workflow: Workflow) -> set[tuple[str, str]]:
+        """(job, output) pairs whose value is the pull request head, directly or via a step."""
+        resolvers = {
+            (_job_id(step), step_id.lower()): _resolver_text(step)
+            for step in workflow.steps()
+            if isinstance(step_id := step.data.get("id"), str)
+        }
+        result: set[tuple[str, str]] = set()
+        for job in workflow.jobs():
+            outputs = job.data.get("outputs")
+            if not isinstance(outputs, dict):
+                continue
+            for output, value in outputs.items():
+                if not isinstance(value, str):
+                    continue
+                if _UNTRUSTED_CHECKOUT.search(value) or any(
+                    _PR_HEAD_RESOLVER.search(resolvers.get((job.id, m.group(1).lower()), ""))
+                    for m in _STEP_OUTPUT.finditer(value)
+                ):
+                    result.add((job.id.lower(), str(output).lower()))
+        return result
 
     def _check_run(self, workflow: Workflow, step: Step, trigger: str) -> Iterator[Finding]:
         script = step.run or ""

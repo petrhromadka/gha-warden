@@ -60,6 +60,36 @@ POSITIVE = {
                   ref: ${{ steps.pr.outputs.sha }}  # HERE
         """,
     ),
+    "GW002-issue-comment-job-output": (
+        "GW002",
+        """
+        on: issue_comment
+        jobs:
+          build:
+            needs: [resolve, plain]
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/checkout@v4
+                with:
+                  ref: ${{ needs.resolve.outputs.sha }}  # HERE
+              - uses: actions/checkout@v4
+                with:
+                  ref: ${{ needs.plain.outputs.head }}  # HERE
+          resolve:
+            runs-on: ubuntu-latest
+            outputs:
+              sha: ${{ steps.pr.outputs.head_sha }}
+            steps:
+              - id: pr
+                run: gh pr view "$N" --json headRefOid --jq .headRefOid >> "$GITHUB_OUTPUT"
+          plain:
+            runs-on: ubuntu-latest
+            outputs:
+              head: ${{ github.event.pull_request.head.sha }}
+            steps:
+              - run: echo hi
+        """,
+    ),
     "GW002-run-gh-pr-checkout": (
         "GW002",
         """
@@ -290,6 +320,27 @@ NEGATIVE = {
               - uses: actions/checkout@v4
                 with:
                   ref: ${{ steps.v.outputs.tag }}
+        """,
+    ),
+    "GW002-unrelated-job-output": (
+        "GW002",
+        """
+        on: issue_comment
+        jobs:
+          build:
+            needs: version
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/checkout@v4
+                with:
+                  ref: ${{ needs.version.outputs.tag }}
+          version:
+            runs-on: ubuntu-latest
+            outputs:
+              tag: ${{ steps.v.outputs.tag }}
+            steps:
+              - id: v
+                run: echo "tag=v1" >> "$GITHUB_OUTPUT"
         """,
     ),
     "GW002-run-in-unprivileged-trigger": (
