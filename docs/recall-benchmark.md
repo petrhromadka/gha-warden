@@ -147,9 +147,10 @@ or run `git fetch` / `checkout` commands. Ten of them were read in context:
 
 - GW003: all 1410 zizmor findings matched. gha-warden-only: 106 findings on
   `uses: $/...` self-repository references and 12 on `docker://` images
-  (zizmor reports those under `unpinned-images`). zizmor documents `$/` as a
-  pinned form, so the 106 look like gha-warden false positives; not changed
-  here because this page is about recall.
+  (zizmor reports those under `unpinned-images`). GitHub's changelog of
+  2026-07-30 confirms that `$/` resolves to the running commit, so these 106
+  were gha-warden false positives. They are fixed (GW003 now skips `$/`), and
+  the real-world GW003 count went from 1530 to 1424.
 - GW004: of 159 zizmor-only findings, 63 are the same missing-permissions
   condition reported at the top of the file instead of at each job (every one
   of those files has GW004 findings); 91 are individual write scopes at the

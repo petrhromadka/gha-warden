@@ -31,7 +31,7 @@ class UnpinnedAction(Rule):
         uses_nodes = [(step.path, step.uses) for step in workflow.steps()]
         uses_nodes += [(job.path, job.data.get("uses")) for job in workflow.jobs()]
         for path, uses in uses_nodes:
-            if not isinstance(uses, str) or uses.startswith(("./", "../")):
+            if not isinstance(uses, str) or uses.startswith(("./", "../", "$/")):
                 continue
             if _FULL_SHA.fullmatch(uses) or _DOCKER_DIGEST.fullmatch(uses):
                 continue

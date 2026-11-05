@@ -389,10 +389,13 @@ NEGATIVE = {
         jobs:
           j:
             uses: ./.github/workflows/reusable.yml
+          s:
+            uses: $/.github/workflows/reusable.yml
           k:
             runs-on: ubuntu-latest
             steps:
               - uses: ./local-action
+              - uses: $/.github/actions/build
               - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567  # v4
               - uses: docker://alpine@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
         """,

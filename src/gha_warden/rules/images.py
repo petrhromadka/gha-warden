@@ -132,7 +132,7 @@ class KnownCompromisedAction(Rule):
         uses_nodes += [(job.path, job.data.get("uses")) for job in workflow.jobs()]
         denylist = load_denylist()
         for path, uses in uses_nodes:
-            if not isinstance(uses, str) or uses.startswith(("./", "../", "docker://")):
+            if not isinstance(uses, str) or uses.startswith(("./", "../", "$/", "docker://")):
                 continue
             name, _, ref = uses.rpartition("@")
             repo = "/".join(name.split("/")[:2]).lower()
