@@ -139,6 +139,29 @@ jobs:
           server-password: CI_DEPLOY_PASSWORD
 ```
 
+## Re-scan after precision fixes
+
+The same 1068 files were scanned again on 2026-11-05 after the GW010 rework
+(credential word must end the key; env-var names, multi-line values, prose
+and short non-password values are skipped) and with the new rules GW011-GW017.
+Runtime about 33 s, 0 parse errors, 0 crashes.
+
+| Rule | Before | After | Note |
+|---|--:|--:|---|
+| GW010 | 53 | 5 | Remaining 5 are the "debatable" class: throwaway CI database / object-store passwords and one token documented as public. All three false-positive classes above are gone. |
+| GW002 | 1 | 4 | Rule extended to `issue_comment` triggers and `gh pr checkout` / `git fetch pull/...` in `run:`. |
+| GW011 | - | 10 | New rule. Not triaged. |
+| GW012 | - | 5 | New rule. All 5 write downloaded file content to `$GITHUB_OUTPUT`; whether the value is validated later was not checked. |
+| GW013 | - | 56 | New rule. Not triaged. |
+| GW014 | - | 0 | No known-compromised action versions in use. |
+| GW015 | - | 0 | |
+| GW016 | - | 10 | New rule. Not triaged. |
+| GW017 | - | 1 | New rule. Not triaged. |
+
+Other rules are unchanged (GW003 1530, GW004 364, GW005 724, GW006 427,
+GW007 15, GW009 15). The new rules have not been triaged on this data, so no
+precision is claimed for them.
+
 ## Limitations
 
 - 42 repositories, one snapshot of the default branch, chosen by hand among
