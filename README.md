@@ -95,6 +95,8 @@ The output above is abridged to two of the demo files.
 | GW008 | high | `ACTIONS_ALLOW_UNSECURE_COMMANDS` set in `env:` at workflow, job or step level | Re-enables the deprecated `set-env` and `add-path` workflow commands, which untrusted log output can abuse | Remove it and use `$GITHUB_ENV` and `$GITHUB_PATH` |
 | GW009 | medium | Remote script piped to a shell in `run:` (`curl ... \| bash`, `wget -O- ... \| sh`, and similar) | Executes whatever the server returns, unverified | Download, verify a checksum or signature, then run |
 | GW010 | high | Credential-looking literal in `env:` or `with:` (keys named like `token`, `password`, `secret`, `api_key` with a non-expression value) | Secrets committed to the repository are exposed to everyone with read access and stay in git history | Store it as a repository secret and reference `${{ secrets.NAME }}` |
+| GW015 | high | The whole `secrets` context passed on (`toJSON(secrets)`, `${{ secrets }}`, or `secrets[...]` with a computed name) anywhere in the workflow; `toJSON(github)` or `toJSON(github.event)` in `run:` | One step gets every secret, which defeats least privilege; the event dump pastes attacker-controlled text into the shell | Reference each needed secret by name in `env:` or `with:`; pass event fields through `env:` |
+| GW016 | low | `${{ secrets.NAME }}` or `${{ github.token }}` used directly inside a `run:` script | The value is written into the generated script, can appear in process listings and traces, and breaks on special characters | Set it in `env:` and use `$NAME` in the script |
 
 ## Output formats
 
