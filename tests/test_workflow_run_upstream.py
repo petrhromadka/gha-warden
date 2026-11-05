@@ -21,6 +21,7 @@ on:
     types: [completed]
 jobs:
   publish:
+    if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +37,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: cat out/env.txt >> "$GITHUB_ENV"
 """
-RULES = ("GW002", "GW011", "GW012")
+RULES = ("GW002", "GW011", "GW012", "GW017")
 JOBS = "jobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n"
 
 
