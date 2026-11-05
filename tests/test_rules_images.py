@@ -102,7 +102,7 @@ def test_gw014_flags_compromised_refs(
     (finding,) = findings_for("GW014", _uses(ref))
     assert (finding.line, finding.severity) == (7, Severity.CRITICAL)
     assert advisory_id in finding.message
-    assert "https://github.com/" in finding.message
+    assert finding.message.rsplit("Advisory: ", 1)[1].startswith("https://github.com/")
 
 
 @pytest.mark.parametrize(
