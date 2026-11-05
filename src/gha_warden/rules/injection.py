@@ -41,18 +41,17 @@ def _normalize(expression: str) -> str:
 
 
 def untrusted_contexts(script: str) -> Iterator[tuple[int, str]]:
-    """Yield (line offset, context) for each untrusted context interpolated in `script`."""
+    """Yield (character offset, context) for each untrusted context interpolated in `script`."""
     for match in _EXPRESSION.finditer(script):
         expression = _normalize(match.group(1))
         if _BOOLEAN_CALL.fullmatch(expression):
             continue
-        line_offset = script.count("\n", 0, match.start())
         seen: set[str] = set()
         for untrusted in _UNTRUSTED.finditer(expression):
             context = untrusted.group(0)
             if context.lower() not in seen:
                 seen.add(context.lower())
-                yield line_offset, context
+                yield match.start(), context
 
 
 class ScriptInjection(Rule):
@@ -83,12 +82,12 @@ class ScriptInjection(Rule):
     def _scan(
         self, workflow: Workflow, path: NodePath, script: str, where: str
     ) -> Iterator[Finding]:
-        for line_offset, context in untrusted_contexts(script):
+        for offset, context in untrusted_contexts(script):
             yield self.finding(
                 workflow,
                 path,
                 f"Untrusted input '{context}' is interpolated into {where}",
-                line_offset=line_offset,
+                offset=offset,
             )
 
 
@@ -201,16 +200,16 @@ class PwnRequest(Rule):
                 (*step.path, "run"),
                 f"run script fetches or checks out untrusted pull request code in a "
                 f"'{trigger}' workflow",
-                line_offset=script.count("\n", 0, match.start()),
+                offset=match.start(),
             )
 
 
 _SHELL = r"(?:ba|z|da|k)?sh"
 _REMOTE_FETCH = r"(?:curl|wget)\b"
 # A pipe stage that only passes the data along, so a shell after it still runs the download.
-_PASS_THROUGH = r"\|\s*tee\b(?:[^\n|]|\\\n)*"
+_TEE_STAGE = r"\|\s*tee\b(?:[^\n|]|\\\n)*"
 _PIPE_TO_SHELL = re.compile(
-    rf"\b{_REMOTE_FETCH}(?:[^\n|]|\\\n)*(?:{_PASS_THROUGH})*"
+    rf"\b{_REMOTE_FETCH}(?:[^\n|]|\\\n)*(?:{_TEE_STAGE})*"
     rf"\|\s*(?:sudo\s+(?:-\S+\s+)*)?(?:/[\w./-]*/)?{_SHELL}(?![\w.-])"
     rf"|\b{_SHELL}\s+<\(\s*{_REMOTE_FETCH}"
     rf"|\b{_SHELL}\s+-c\s+[\"']?\$\(\s*{_REMOTE_FETCH}"
@@ -244,5 +243,5 @@ class RemoteScriptPipe(Rule):
                     workflow,
                     (*step.path, "run"),
                     "Remote script is piped into a shell",
-                    line_offset=script.count("\n", 0, match.start()),
+                    offset=match.start(),
                 )

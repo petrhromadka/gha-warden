@@ -541,6 +541,32 @@ jobs:
     assert "github.event.issue.body" in finding.message
 
 
+@pytest.mark.parametrize(
+    "scalar",
+    [
+        ">\n          echo 1\n          echo 2\n          echo ${{ github.event.issue.body }}\n",
+        '>-\n          echo one\n\n          echo "${{ github.event.issue.body }}"\n',
+        '"echo one\n          echo two\n          echo ${{ github.event.issue.body }}"\n',
+        "echo one\n          echo two\n          echo ${{ github.event.issue.body }}\n",
+    ],
+    ids=["folded", "folded-blank-line", "double-quoted", "plain"],
+)
+def test_gw001_line_inside_folded_and_multiline_scalars(
+    findings_for: FindingsFor, scalar: str
+) -> None:
+    text = (
+        "name: t\non: issues\njobs:\n  j:\n    runs-on: ubuntu-latest\n    steps:\n"
+        f"      - run: {scalar}"
+    )
+    (finding,) = findings_for("GW001", text)
+    expected = next(
+        number
+        for number, line in enumerate(text.splitlines(), start=1)
+        if "github.event.issue.body" in line
+    )
+    assert finding.line == expected
+
+
 def test_gw003_exact_line_and_severity(findings_for: FindingsFor) -> None:
     text = """\
 name: t
