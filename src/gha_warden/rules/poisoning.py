@@ -138,12 +138,14 @@ def _in_dir(path: str, directory: str) -> bool:
 
 
 def _logical_lines(script: str) -> Iterator[tuple[int, str]]:
-    """Yield (line offset, text) per shell command line, joining backslash continuations."""
+    """Yield (character offset, text) per shell command line, joining backslash continuations."""
     offset = 0
+    position = 0
     pending: list[str] = []
-    for index, line in enumerate(script.split("\n")):
+    for line in script.split("\n"):
         if not pending:
-            offset = index
+            offset = position
+        position += len(line) + 1
         if line.endswith("\\"):
             pending.append(line[:-1])
             continue
@@ -157,7 +159,7 @@ def _logical_lines(script: str) -> Iterator[tuple[int, str]]:
 def _download(step: Step) -> tuple[bool, str | None, int]:
     """Whether `step` downloads artifacts from another run, into which directory, and where.
 
-    The last item is the line offset inside a `run:` script; it is 0 for `uses:` steps.
+    The last item is the character offset inside a `run:` script; it is 0 for `uses:` steps.
     """
     action = _action(step)
     if action == "actions/download-artifact":
@@ -300,6 +302,6 @@ class ArtifactPoisoning(Rule):
                         (*step.path, "uses" if step.uses else "run"),
                         f"Artifact downloaded in a '{trigger}' workflow is used unsafely: "
                         f"{misuse} (step at line {line})",
-                        line_offset=offset,
+                        offset=offset,
                     )
                     break

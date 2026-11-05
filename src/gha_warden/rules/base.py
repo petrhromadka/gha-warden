@@ -29,9 +29,9 @@ class Rule(ABC):
         *,
         severity: Severity | None = None,
         key: bool = False,
-        line_offset: int = 0,
+        offset: int = 0,
     ) -> Finding:
-        line, column = workflow.locate(path, key=key, line_offset=line_offset)
+        line, column = workflow.locate(path, key=key, offset=offset)
         return Finding(
             rule_id=self.id,
             severity=severity or self.severity,
