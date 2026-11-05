@@ -254,7 +254,7 @@ POSITIVE = {
             runs-on: ubuntu-latest
             env:
               DB_PASSWORD: hunter2-not-real  # HERE
-              API_KEY: abcd1234efgh5678  # HERE
+              API_KEY: fake-api-key-not-real  # HERE
               db_password: hunter2  # HERE
             steps:
               - run: echo hi
