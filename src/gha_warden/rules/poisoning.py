@@ -95,9 +95,12 @@ _FILE_READ = re.compile(
     rf"(?:^|[(`;&]|\$\()\s*(?:{_READERS})\s+(?!<)\S|\$\(\s*<|(?<![<\d])<\s*[^\s<(&]",
     re.IGNORECASE,
 )
-# Reducing the content to digits makes it harmless to put in the environment or an output.
+# Reducing the content to digits makes it harmless to put in the environment or an output:
+# `tr -cd 0-9`, `| tonumber`, or `grep` keeping only lines that are entirely digits.
 _SANITIZED = re.compile(
-    r"\btr\s+-(?:cd|dc)\s+[\"']?\[?(?:0-9|:digit:)|\|\s*tonumber\b", re.IGNORECASE
+    r"\btr\s+-(?:cd|dc)\s+[\"']?\[?(?:0-9|:digit:)|\|\s*tonumber\b"
+    r"|\bgrep\s+(?:-[^\sv]+\s+)*[\"']\^(?:\[0-9\]|\\d)\+\$[\"']",
+    re.IGNORECASE,
 )
 # The webhook payload is not an artifact.
 _EVENT_PAYLOAD = re.compile(r"GITHUB_EVENT_PATH")

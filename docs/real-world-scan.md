@@ -150,25 +150,108 @@ Runtime about 33 s, 0 parse errors, 0 crashes.
 |---|--:|--:|---|
 | GW010 | 53 | 5 | Remaining 5 are the "debatable" class: throwaway CI database / object-store passwords and one token documented as public. All three false-positive classes above are gone. |
 | GW002 | 1 | 4 | Rule extended to `issue_comment` triggers and `gh pr checkout` / `git fetch pull/...` in `run:`. |
-| GW011 | - | 10 | New rule. Not triaged. |
-| GW012 | - | 5 | New rule. All 5 write downloaded file content to `$GITHUB_OUTPUT`; whether the value is validated later was not checked. |
-| GW013 | - | 56 | New rule. Not triaged. |
+| GW011 | - | 10 | New rule. Triaged below. |
+| GW012 | - | 5 | New rule. Triaged below; 4 after the fix described there. |
+| GW013 | - | 56 | New rule. Triaged below (10 of 56). |
 | GW014 | - | 0 | No known-compromised action versions in use. |
 | GW015 | - | 0 | |
-| GW016 | - | 10 | New rule. Not triaged. |
-| GW017 | - | 1 | New rule. Not triaged. |
+| GW016 | - | 10 | New rule. Triaged below. |
+| GW017 | - | 1 | New rule. Triaged below. |
 
 Other rules are unchanged (GW003 1530, GW004 364, GW005 724, GW006 427,
-GW007 15, GW009 15). The new rules have not been triaged on this data, so no
-precision is claimed for them.
+GW007 15, GW009 15).
+
+## Triage of GW011-GW017
+
+The new rules were triaged on the same 1068 files by one reviewer, who read
+the YAML around each finding and, where a finding depends on another
+workflow, that workflow too. Up to 10 findings per rule were classified
+(all of them when there were fewer; for GW013, 10 of 56 spread over
+different repositories). TP means the pattern matches the rule's intent, not
+that the workflow is exploitable; exploitability was not tested.
+
+| Rule | Findings | Sample | TP | FP | D | Notable classes |
+|------|---------:|-------:|---:|---:|--:|-----------------|
+| GW011 | 10 | 10 | 6 | 0 | 4 | TP: dependency caches (`setup-python`, `setup-node`, `setup-go`, `actions/cache` of `node_modules`) restored in `workflow_run`, `issue_comment` or merged-PR `pull_request_target` workflows, some with cloud credentials in the same job. D: a cache of one data file (a usage log, never executed) in generated workflows; 4 findings in 2 files of one repository. |
+| GW012 | 5 | 5 | 1 | 2 | 2 | See below. |
+| GW013 | 56 | 10 | 10 | 0 | 0 | Mutable tags are what the rule is about. 21 of the 56 findings have no tag or `latest`. The rest are version tags of database and message-queue service containers, language toolchain images and first-party images. One finding carries an inline suppression for another tool; it is still a TP for this rule. Severity (medium) fits job containers better than throwaway service containers. |
+| GW014 | 0 | - | - | - | - | No findings. |
+| GW015 | 0 | - | - | - | - | No findings. |
+| GW016 | 10 | 10 | 10 | 0 | 0 | Secret as a command-line argument (4: `cargo login`, `poetry publish -p`, `hf auth login --token`, a `--token` flag), `GH_TOKEN=${{ github.token }} cmd` (3), `echo "${{ secrets.X }}" \| docker login --password-stdin` (1), secret written into a dotenv file (1), a registry user name stored as a secret (1). Low severity fits: none of them is an injection, but the value ends up in the script text. |
+| GW017 | 1 | 1 | 0 | 0 | 1 | `github.actor == 'dependabot[bot]'` OR-ed with a fork check in a `workflow_run` job. Spoofing the actor grants nothing that the fork branch of the condition does not already grant. The pattern matches the rule's intent, the practical risk is low. |
+
+### GW012 detail
+
+| # | Class | Verdict |
+|---|-------|---------|
+| 1 | Artifact content written to `$GITHUB_OUTPUT` without validation; the artifact is produced by a `pull_request` workflow that runs code from the pull request. | TP |
+| 2 | Same write, but the producing workflow runs only on pushes to protected branches (found by reading the producer). | D |
+| 3 | Same write, but the producer carries no pull request code and the job is guarded by a not-a-fork condition; values are a label name and a number. | D |
+| 4 | Value reduced to digits with `grep -E '^[0-9]+$'`. | FP, fixed |
+| 5 | The file written to `$GITHUB_OUTPUT` is produced in the job itself, not by the download. | FP, not fixed |
+
+False positives and fixes:
+
+- Digits-only `grep` (fixed): the rule skipped writes reduced with `tr -cd
+  0-9` or `| tonumber` but not a `grep` that keeps only lines made of digits.
+  `_SANITIZED` in `rules/poisoning.py` now also accepts `grep` with an
+  anchored `^[0-9]+$` pattern (but not an inverted `-v` one, and not an
+  unanchored pattern). Test cases `GW012-grep-digits-only-line` (negative) and
+  `GW012-grep-not-digits-only` (positive) were added to
+  `tests/test_rules_poisoning.py`.
+- File not from the download (not fixed): the check for "file content written
+  to an output" looks only at the line with the write and does not know which
+  files came from the download. It cannot tell `cat data.json` of a file made
+  by the job from a file in the artifact directory, and telling them apart
+  needs data flow across steps (for example `FILE=dir/x.json; jq . "$FILE"`
+  must stay a finding). A guess that drops lines with literal paths outside
+  the download directory would lose recall, so it was left for later.
+
+```yaml
+# GW012 digits-only grep (fixed): was reported, now silent
+on: workflow_run
+permissions: {}
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: echo "NUMBER=$(grep -E '^[0-9]+$' pr_number.txt || true)" >> "$GITHUB_OUTPUT"
+```
+
+```yaml
+# GW012 file not from the download (not fixed): still reported
+on: workflow_run
+permissions: {}
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run download "$RUN_ID" --name request --dir request
+      - run: ./build.sh --out data.json
+      - run: |
+          { printf 'data='; cat data.json; } >> "$GITHUB_OUTPUT"
+```
+
+### Counts after the fix
+
+Scanning the 1068 files again after the GW012 fix: 3165 findings in total
+(3166 before). GW012 went from 5 to 4; no other rule changed.
+
+Not measured: recall of GW011-GW017, and the GW013 findings beyond the 10
+sampled. GW014 and GW015 had no findings, so nothing can be said about their
+precision on real data.
 
 ## Limitations
 
 - 42 repositories, one snapshot of the default branch, chosen by hand among
   very popular projects. They are heavily maintained and not representative
   of the long tail of small repositories.
-- Precision is estimated from small samples (at most 5 per rule, 53 for
-  GW010). Recall (false negatives) was not measured.
+- Precision is estimated from small samples (at most 5 per rule for GW001-GW009,
+  53 for GW010, at most 10 for GW011-GW017). Recall (false negatives) was not measured.
 - GW001 and GW008 produced no findings, so nothing can be said about their
   precision on real data.
 - Findings are counted per occurrence, so large generated workflow files
