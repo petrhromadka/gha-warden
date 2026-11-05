@@ -68,4 +68,4 @@ each has `id`, `title`, `severity`, `description`, `remediation`, `check(workflo
 - CI: ruff, ty, pytest on Linux + Windows; gha-warden scans its own workflows (dogfood) — must be clean.
 - `examples/vulnerable/*.yml` demo workflows that trigger every rule, `examples/safe/` that trigger none.
 - README with badges, demo output, rule table, quick start; LICENSE (MIT); SECURITY.md; CONTRIBUTING.md.
-- Never commit secrets: fixtures use obviously fake values like `ghp_EXAMPLEEXAMPLEEXAMPLE`.
+- Never commit secrets: fixtures use obviously fake values like `hunter2-not-real`.
