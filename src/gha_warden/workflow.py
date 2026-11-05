@@ -66,14 +66,21 @@ class Workflow:
     def __init__(self, path: str, text: str) -> None:
         self.path = path
         self.lines = text.splitlines()
-        loader = yaml.SafeLoader(text)
+        loader = None
         try:
+            # The constructor already rejects control characters, so it belongs inside the try.
+            loader = yaml.SafeLoader(text)
             node = loader.get_single_node()
             data = loader.construct_document(node) if node is not None else {}
         except yaml.YAMLError as exc:
             raise WorkflowError(_describe_yaml_error(exc)) from exc
+        except RecursionError as exc:
+            raise WorkflowError("invalid YAML: nesting too deep") from exc
+        except ValueError as exc:  # e.g. an integer literal over Python's digit limit
+            raise WorkflowError(f"invalid YAML: {exc}") from exc
         finally:
-            loader.dispose()
+            if loader is not None:
+                loader.dispose()
         if not isinstance(data, dict):
             raise WorkflowError("expected a mapping at the top level")
         # PyYAML (YAML 1.1) parses a bare `on` key as boolean True.
