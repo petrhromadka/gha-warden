@@ -6,7 +6,7 @@ Static security auditor for GitHub Actions workflows: finds injection and supply
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 
-gha-warden reads your workflow files and reports ten classes of problems (script injection, pwn requests, unpinned actions, over-broad permissions, and more) with a file, line, severity and a concrete fix. It is pure static analysis: no network access, no tokens, nothing leaves your machine. Output is human-readable text, JSON, SARIF for GitHub code scanning, workflow annotations, or a Markdown job summary.
+gha-warden reads your workflow files and reports seventeen classes of problems (script injection, pwn requests, unpinned actions, over-broad permissions, and more) with a file, line, severity and a concrete fix. It is pure static analysis: no network access, no tokens, nothing leaves your machine. Output is human-readable text, JSON, SARIF for GitHub code scanning, workflow annotations, or a Markdown job summary.
 
 ## Why
 
