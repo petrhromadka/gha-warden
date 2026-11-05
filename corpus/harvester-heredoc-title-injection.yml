@@ -1,0 +1,32 @@
+# Case: harvester/harvester backport-link workflow, PR title injection inside a heredoc (GHSL-2025-090)
+# Date: 2025-10-16
+# Source: https://securitylab.github.com/advisories/GHSL-2025-090_harvester_harvester/
+# Pattern: pull_request_target workflow with a repository secret in the step env expands the PR
+# title inside a shell heredoc; a title containing the heredoc terminator or $(...) runs commands.
+# Re-written minimal reproduction; names are generic. The permissions block is added by the
+# reproduction (the advisory does not state the token scopes).
+name: Link backport PR
+
+on:
+  pull_request_target:
+    types: [opened]
+    branches:
+      - master
+      - "v*"
+
+permissions:
+  pull-requests: write
+
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read title
+        env:
+          GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+        run: |
+          title=$(cat <<EOF
+          "${{ github.event.pull_request.title }}"
+          EOF
+          )
+          echo "$title"

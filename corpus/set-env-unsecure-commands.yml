@@ -1,0 +1,23 @@
+# Case: set-env / add-path workflow commands processed from stdout, re-enabled by ACTIONS_ALLOW_UNSECURE_COMMANDS
+# Date: 2020-10-01 (GHSA published); commands removed by default 2020-11-16
+# Source: https://github.com/actions/toolkit/security/advisories/GHSA-mfwh-5m23-j46w
+#         https://github.com/actions/runner/pull/779 (documents the ACTIONS_ALLOW_UNSECURE_COMMANDS opt-in)
+# Pattern: workflows that log untrusted data to stdout can inject ::set-env / ::add-path commands;
+# setting ACTIONS_ALLOW_UNSECURE_COMMANDS: true re-enables the vulnerable behaviour.
+# Re-written minimal reproduction. The permissions block is added by the reproduction.
+name: Legacy env commands
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+env:
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+jobs:
+  legacy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::set-env name=BUILD_MODE::release"

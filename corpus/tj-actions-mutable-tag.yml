@@ -1,0 +1,23 @@
+# Case: tj-actions/changed-files compromise (CVE-2025-30066) - consumers referencing a movable version tag
+# Date: 2025-03-15 (GHSA published; incident 2025-03-14)
+# Source: https://github.com/advisories/GHSA-mrrh-fwg8-r2c3
+#         https://www.stepsecurity.io/blog/harden-runner-detection-tj-actions-changed-files-action-is-compromised
+# Pattern: attackers retroactively re-pointed multiple version tags to a malicious commit that
+# exposed CI secrets in workflow logs; workflows using a tag (instead of a full commit SHA) ran it.
+# Re-written minimal reproduction of the consumer side. The permissions block is added by the
+# reproduction.
+name: Changed files
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get changed files
+        id: changed
+        uses: tj-actions/changed-files@v44

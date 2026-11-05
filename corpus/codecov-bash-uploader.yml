@@ -1,0 +1,24 @@
+# Case: Codecov Bash Uploader compromise - CI jobs piping a remote script to bash
+# Date: 2021-04-15
+# Source: https://about.codecov.io/security-update/
+#         https://github.com/codecov/codecov-bash (README documents `curl -s https://codecov.io/bash | bash -s - -t token`)
+# Pattern: between 2021-01-31 and 2021-04-01 the script served at codecov.io/bash was modified to send
+# CI environment variables to an attacker host; every job that fetched and ran it on each build
+# executed the change. Re-written minimal reproduction. The permissions block is added by the
+# reproduction.
+name: Coverage
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: curl -s https://codecov.io/bash | bash -s - -t "$CODECOV_TOKEN"

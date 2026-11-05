@@ -1,0 +1,113 @@
+[
+  {
+    "file": "infinispan-pr-title-injection.yml",
+    "expected_rules": [
+      "GW001",
+      "GW004"
+    ],
+    "source": "https://securitylab.github.com/advisories/GHSL-2024-048_infinispan/",
+    "summary": "pull_request_target workflow interpolates github.event.pull_request.title into a run script; no permissions block."
+  },
+  {
+    "file": "winglang-head-ref-injection.yml",
+    "expected_rules": [
+      "GW001"
+    ],
+    "source": "https://securitylab.github.com/advisories/GHSL-2023-110_Wing_Language/",
+    "summary": "pull_request_target workflow with contents: write interpolates github.event.pull_request.head.ref into a git push command."
+  },
+  {
+    "file": "discordjs-pr-title-validation.yml",
+    "expected_rules": [
+      "GW001",
+      "GW004"
+    ],
+    "source": "https://securitylab.github.com/advisories/GHSL-2024-145_Discord_js/",
+    "summary": "pull_request_target workflow assigns the PR title to a shell variable via a template expression; no permissions block."
+  },
+  {
+    "file": "harvester-heredoc-title-injection.yml",
+    "expected_rules": [
+      "GW001"
+    ],
+    "source": "https://securitylab.github.com/advisories/GHSL-2025-090_harvester_harvester/",
+    "summary": "pull_request_target workflow with a repository secret expands the PR title inside a shell heredoc."
+  },
+  {
+    "file": "ultralytics-format-workflow.yml",
+    "expected_rules": [
+      "GW003"
+    ],
+    "source": "https://www.blog.yossarian.net/2024/12/06/zizmor-ultralytics-injection",
+    "summary": "pull_request_target workflow runs a third-party action pinned to the mutable ref @main."
+  },
+  {
+    "file": "ultralytics-head-ref-injection.yml",
+    "expected_rules": [
+      "GW001"
+    ],
+    "source": "https://github.com/ultralytics/actions/security/advisories/GHSA-7x29-qqmq-v6qc",
+    "summary": "run step expands github.head_ref (attacker-controlled branch name) unquoted in a pull_request_target context."
+  },
+  {
+    "file": "nx-s1ngularity-pr-title.yml",
+    "expected_rules": [
+      "GW001",
+      "GW004"
+    ],
+    "source": "https://github.com/advisories/GHSA-cxm3-wv7p-598c",
+    "summary": "pull_request_target PR-title validation workflow echoes the title through a template expression; no permissions block."
+  },
+  {
+    "file": "pwn-request-checkout-head.yml",
+    "expected_rules": [
+      "GW002",
+      "GW003",
+      "GW005"
+    ],
+    "source": "https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/",
+    "summary": "pull_request_target workflow checks out the PR head SHA and runs npm install/build; actions pinned to tags; checkout keeps credentials."
+  },
+  {
+    "file": "pytorch-self-hosted-runner-pr.yml",
+    "expected_rules": [
+      "GW007",
+      "GW009"
+    ],
+    "source": "https://johnstawinski.com/2024/01/11/playing-with-fire-how-we-executed-a-critical-supply-chain-attack-on-pytorch/",
+    "summary": "pull_request workflow runs on self-hosted runners and pipes a remote payload into bash."
+  },
+  {
+    "file": "tj-actions-mutable-tag.yml",
+    "expected_rules": [
+      "GW003"
+    ],
+    "source": "https://github.com/advisories/GHSA-mrrh-fwg8-r2c3",
+    "summary": "third-party action referenced by a movable version tag that attackers re-pointed to a malicious commit (CVE-2025-30066)."
+  },
+  {
+    "file": "artipacked-upload-checkout-dir.yml",
+    "expected_rules": [
+      "GW003",
+      "GW005"
+    ],
+    "source": "https://unit42.paloaltonetworks.com/github-repo-artifacts-leak-tokens/",
+    "summary": "actions/checkout persists the token and the whole checkout directory is uploaded as an artifact."
+  },
+  {
+    "file": "set-env-unsecure-commands.yml",
+    "expected_rules": [
+      "GW008"
+    ],
+    "source": "https://github.com/actions/toolkit/security/advisories/GHSA-mfwh-5m23-j46w",
+    "summary": "ACTIONS_ALLOW_UNSECURE_COMMANDS re-enables the vulnerable set-env/add-path stdout commands."
+  },
+  {
+    "file": "codecov-bash-uploader.yml",
+    "expected_rules": [
+      "GW009"
+    ],
+    "source": "https://about.codecov.io/security-update/",
+    "summary": "CI step pipes the remote Codecov bash uploader script into bash."
+  }
+]
