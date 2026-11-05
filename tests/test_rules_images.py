@@ -73,6 +73,13 @@ def test_gw013_accepts_digest_pinned_and_expressions(findings_for: FindingsFor) 
     assert findings_for("GW013", text) == []
 
 
+def test_gw013_still_flags_empty_job_container_image(findings_for: FindingsFor) -> None:
+    # Unlike services.<id>.image, the docs give an empty container image no "disabled" meaning.
+    for container in ("container: ''\n", "container:\n      image: ''\n"):
+        text = _workflow(f"    {container}    steps:\n      - run: echo hi\n")
+        assert len(findings_for("GW013", text)) == 1, container
+
+
 def test_gw013_ignores_job_without_container(findings_for: FindingsFor) -> None:
     assert findings_for("GW013", _workflow("    steps:\n      - run: echo hi\n")) == []
 

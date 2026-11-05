@@ -175,6 +175,13 @@ def test_control_characters_are_escaped_in_text_output() -> None:
     assert len(out.splitlines()) == 5
 
 
+@pytest.mark.parametrize("color", [False, True])
+def test_text_header_for_a_path_starting_with_colons_is_not_a_command(color: bool) -> None:
+    out = format_text([finding(path="::add-mask::x.yml")], files_scanned=1, color=color)
+    assert not any(line.startswith("::") for line in out.splitlines())
+    assert "./::add-mask::x.yml" in out
+
+
 def test_error_messages_cannot_start_a_workflow_command(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

@@ -72,7 +72,11 @@ def format_text(findings: Sequence[Finding], *, files_scanned: int, color: bool)
 
     out: list[str] = []
     for path, group in itertools.groupby(findings, key=lambda f: f.path):
-        out.append(paint(neutralize(path), "1;4"))
+        header = neutralize(path)
+        if header.startswith("::"):
+            # Equivalent relative path, but the log line can no longer be a workflow command.
+            header = f"./{header}"
+        out.append(paint(header, "1;4"))
         for f in group:
             label = paint(f"{f.severity.label:<8}", _COLORS[f.severity])
             out.append(f"  {f'{f.line}:{f.column}':<8}{label} {f.rule_id}  {neutralize(f.message)}")
