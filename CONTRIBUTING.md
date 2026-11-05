@@ -14,6 +14,8 @@ uv run ty check
 
 All checks must pass with zero warnings. CI also runs `uv run gha-warden .github/workflows action.yml` against this repository's own workflows, and that scan must stay clean.
 
+CI also fuzzes the scanner with Atheris on Linux; see [fuzz/README.md](fuzz/README.md) to run it locally.
+
 ## Adding a rule
 
 1. Add a module under `src/gha_warden/` with the rule's `id`, `title`, `severity`, `description`, `remediation` and a `check(workflow)` that yields `Finding` objects, and register it in the rule list.
