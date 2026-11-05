@@ -1,6 +1,7 @@
 """Rule registry."""
 
 from gha_warden.rules.base import Rule
+from gha_warden.rules.images import KnownCompromisedAction, UnpinnedContainerImage
 from gha_warden.rules.injection import PwnRequest, RemoteScriptPipe, ScriptInjection
 from gha_warden.rules.permissions import (
     ExcessivePermissions,
@@ -24,6 +25,8 @@ ALL_RULES: list[Rule] = [
     HardcodedCredential(),
     CachePoisoning(),
     ArtifactPoisoning(),
+    UnpinnedContainerImage(),
+    KnownCompromisedAction(),
 ]
 
 __all__ = ["ALL_RULES", "Rule"]

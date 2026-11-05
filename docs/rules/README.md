@@ -17,6 +17,8 @@ example, and how to suppress a finding.
 | [GW010](GW010.md) | Hardcoded credential in `env:` or `with:` | high |
 | [GW011](GW011.md) | Cache poisoning in privileged workflow | medium |
 | [GW012](GW012.md) | Artifact poisoning | high |
+| [GW013](GW013.md) | Container image not pinned by digest | medium |
+| [GW014](GW014.md) | Known-compromised action | critical |
 
 ## Suppressing a finding
 

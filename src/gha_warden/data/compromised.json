@@ -1,0 +1,52 @@
+[
+  {
+    "action": "tj-actions/changed-files",
+    "advisory_id": "CVE-2025-30066",
+    "advisory": "https://github.com/advisories/GHSA-mrrh-fwg8-r2c3",
+    "compromised_on": "2025-03-14",
+    "affected_refs": ["v35.7.7-sec"],
+    "affected_below": "46.0.1",
+    "malicious_shas": ["0e58ed8671d6b60d0890c21b07f8835ace038e67"],
+    "guidance": "Version tags up to 45.0.7 were re-pointed to a commit that printed runner secrets to the build log. Update to 46.0.1 or later, pin the action to a full commit SHA, and rotate secrets that were exposed to affected runs."
+  },
+  {
+    "action": "reviewdog/action-setup",
+    "advisory_id": "GHSA-qmg3-hpqr-gqvc",
+    "advisory": "https://github.com/reviewdog/reviewdog/security/advisories/GHSA-qmg3-hpqr-gqvc",
+    "compromised_on": "2025-03-11",
+    "affected_refs": [],
+    "affected_below": null,
+    "malicious_shas": ["f0d342d"],
+    "guidance": "Commit f0d342d added code that dumped secrets to the build log. The v1 tag has since been re-pointed to a fixed commit, so pin the action to the full SHA of that fixed release and rotate secrets that were exposed to runs between 18:42 and 20:31 UTC on 2025-03-11."
+  },
+  {
+    "action": "aquasecurity/trivy-action",
+    "advisory_id": "CVE-2026-33634",
+    "advisory": "https://github.com/advisories/GHSA-69fq-xp46-6x23",
+    "compromised_on": "2026-03-19",
+    "affected_refs": [],
+    "affected_below": "0.35.0",
+    "malicious_shas": [],
+    "guidance": "76 of 77 version tags (0.0.1 to 0.34.2) were force-pushed to credential-stealing code. Update to 0.35.0 or later, pin to a full commit SHA, and rotate secrets that were exposed to runs during the exposure window."
+  },
+  {
+    "action": "aquasecurity/setup-trivy",
+    "advisory_id": "CVE-2026-33634",
+    "advisory": "https://github.com/advisories/GHSA-69fq-xp46-6x23",
+    "compromised_on": "2026-03-19",
+    "affected_refs": [],
+    "affected_below": "0.2.6",
+    "malicious_shas": [],
+    "guidance": "All tags were replaced with malicious commits. Update to 0.2.6 or later, pin to a full commit SHA, and rotate secrets that were exposed to runs during the exposure window."
+  },
+  {
+    "action": "xygeni/xygeni-action",
+    "advisory_id": "GHSA-f8q5-h5qh-33mh",
+    "advisory": "https://github.com/xygeni/xygeni-action/security/advisories/GHSA-f8q5-h5qh-33mh",
+    "compromised_on": "2026-03-03",
+    "affected_refs": ["v5"],
+    "affected_below": null,
+    "malicious_shas": ["4bf1d4e19ad81a3e8d4063755ae0f482dd3baf12"],
+    "guidance": "The v5 tag was moved to a commit that installed a command-and-control backdoor on the runner. Pin to the verified commit of v6.4.0 (13c6ed2797df7d85749864e2cbcf09c893f43b23) or later and rotate secrets that were exposed to runs between 2026-03-03 and 2026-03-10."
+  }
+]
