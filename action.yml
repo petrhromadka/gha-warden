@@ -47,7 +47,8 @@ runs:
         GW_UPLOAD_SARIF: ${{ inputs.upload-sarif }}
         GW_ANNOTATIONS: ${{ inputs.annotations }}
       run: |
-        set -uo pipefail
+        # `shell: bash` runs with -e; exit code 1 (findings) is handled below, so turn -e off.
+        set +e -uo pipefail
         read -r -a targets <<< "$GW_PATHS"
         report="${RUNNER_TEMP}/gha-warden-report.${GW_FORMAT}"
         sarif="${RUNNER_TEMP}/gha-warden.sarif"
