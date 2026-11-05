@@ -1,5 +1,6 @@
 """Rule registry."""
 
+from gha_warden.rules.actor import SpoofableActorCheck
 from gha_warden.rules.base import Rule
 from gha_warden.rules.injection import PwnRequest, RemoteScriptPipe, ScriptInjection
 from gha_warden.rules.permissions import (
@@ -21,6 +22,7 @@ ALL_RULES: list[Rule] = [
     UnsecureCommands(),
     RemoteScriptPipe(),
     HardcodedCredential(),
+    SpoofableActorCheck(),
 ]
 
 __all__ = ["ALL_RULES", "Rule"]

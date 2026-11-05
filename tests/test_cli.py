@@ -93,7 +93,7 @@ def test_sarif_format(write_workflow: WriteWorkflow, capsys: pytest.CaptureFixtu
     driver = sarif_run["tool"]["driver"]
     assert driver["name"] == "gha-warden"
     rules = {rule["id"]: rule for rule in driver["rules"]}
-    assert sorted(rules) == [f"GW{n:03d}" for n in range(1, 11)]
+    assert sorted(rules) == [f"GW{n:03d}" for n in range(1, 11)] + ["GW017"]
     assert rules["GW001"]["properties"]["security-severity"] == "9.5"
     assert rules["GW005"]["properties"]["security-severity"] == "3.0"
     assert rules["GW001"]["help"]["text"]
@@ -115,7 +115,7 @@ def test_sarif_without_findings_is_valid(
     sarif = json.loads(out)
     assert code == 0
     assert sarif["runs"][0]["results"] == []
-    assert len(sarif["runs"][0]["tool"]["driver"]["rules"]) == 10
+    assert len(sarif["runs"][0]["tool"]["driver"]["rules"]) == 11
 
 
 def test_min_severity_filters_findings(
