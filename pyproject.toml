@@ -1,6 +1,6 @@
 [project]
 name = "gha-warden"
-version = "0.1.0"
+version = "0.1.1"
 description = "Static security auditor for GitHub Actions workflows: finds injection and supply-chain risks."
 readme = "README.md"
 license = "MIT"
