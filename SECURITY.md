@@ -3,8 +3,9 @@
 ## Reporting a vulnerability
 
 Please report security issues privately through GitHub private vulnerability reporting:
+<https://github.com/petrhromadka/gha-warden/security/advisories/new>
 
-1. Open the repository's **Security** tab.
+1. Or open the repository's **Security** tab.
 2. Choose **Report a vulnerability**.
 3. Describe the problem and, if you can, include a minimal workflow file that reproduces it.
 
