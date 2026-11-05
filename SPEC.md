@@ -13,8 +13,8 @@ injection risks before they ship. Pure static analysis: no network, no tokens.
 ## CLI
 
 ```
-gha-warden [PATHS...] [--format text|json|sarif] [--min-severity low|medium|high|critical]
-           [--ignore RULE_ID ...] [--output FILE] [--no-color]
+gha-warden [PATHS...] [--format text|json|sarif|github|markdown] [--min-severity low|medium|high|critical]
+           [--ignore RULE_ID ...] [--config PATH] [--output FILE] [--no-color]
 ```
 
 - PATHS: files or directories; default `.github/workflows`. Directories are scanned for
@@ -44,7 +44,7 @@ each has `id`, `title`, `severity`, `description`, `remediation`, `check(workflo
 | ID | Title | Severity |
 |----|-------|----------|
 | GW001 | Script injection: untrusted `${{ }}` context in `run:` or `actions/github-script` `script:` (github.event.issue.title/body, pull_request.title/body/head.ref/head.label, comment.body, review.body, review_comment.body, pages.*.page_name, commits.*.message/author, head_commit.message/author, github.head_ref, discussion.title/body, workflow_run.head_branch/head_commit.*) | critical |
-| GW002 | Pwn request: `pull_request_target` or `workflow_run` workflow checks out untrusted PR code (`actions/checkout` with `ref:` using github.event.pull_request.head.*, github.head_ref, or workflow_run.head_*) | critical |
+| GW002 | Pwn request: `pull_request_target`, `workflow_run` or `issue_comment` workflow checks out untrusted PR code (`actions/checkout` with `ref:` using github.event.pull_request.head.*, github.head_ref, workflow_run.head_*, `refs/pull/...`, or a step output that resolved the PR head; or a `run:` step with `gh pr checkout`, `git fetch ... pull/...`, `git checkout` of the PR head) | critical |
 | GW003 | Third-party action not pinned to a full 40-char commit SHA (skip `./local` and `docker://` with digest; `actions/*` and `github/*` owners are MEDIUM, others HIGH) | high |
 | GW004 | Excessive permissions: `permissions: write-all`, or no top-level `permissions:` and a job lacks its own | medium |
 | GW005 | `actions/checkout` without `persist-credentials: false` (token left in .git/config, readable by later steps / uploaded artifacts) | low |
@@ -53,6 +53,7 @@ each has `id`, `title`, `severity`, `description`, `remediation`, `check(workflo
 | GW008 | `ACTIONS_ALLOW_UNSECURE_COMMANDS` enabled in env (workflow/job/step) | high |
 | GW009 | Remote script piped to a shell in `run:` (`curl ... \| bash`, `wget -O- ... \| sh`, etc.) | medium |
 | GW010 | Hardcoded credential-looking literal in `env:` or `with:` (keys named like token/password/secret/api_key with a non-expression literal value) | high |
+| GW017 | Spoofable actor check: job or step `if:` in a `pull_request_target`/`workflow_run`/`issue_comment` workflow gating on `github.actor == '...[bot]'` or `github.triggering_actor` | high |
 
 ## Output formats
 
@@ -61,6 +62,14 @@ each has `id`, `title`, `severity`, `description`, `remediation`, `check(workflo
 - sarif: SARIF 2.1.0 with `tool.driver.rules` populated from rule metadata
   (`help.text` = remediation, `properties.security-severity` as string: low 3.0, medium 5.0,
   high 7.5, critical 9.5), so GitHub code scanning shows it.
+- github: one `::error|warning|notice file=,line=,col=,title=::message` workflow command per finding
+  (critical/high error, medium warning, low notice), escaped like actions/toolkit.
+- markdown: severity summary table + findings table, for `$GITHUB_STEP_SUMMARY` or PR comments.
+
+## Config file
+
+`.gha-warden.toml` in the current directory, or `--config PATH`: `ignore` (rule IDs),
+`min-severity`, `exclude` (path globs). CLI flags override the config; an invalid config exits 2.
 
 ## Repo extras
 

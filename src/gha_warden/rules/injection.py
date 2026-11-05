@@ -7,7 +7,7 @@ from collections.abc import Iterable, Iterator
 
 from gha_warden.models import Finding, Severity
 from gha_warden.rules.base import Rule
-from gha_warden.workflow import NodePath, Workflow
+from gha_warden.workflow import NodePath, Step, Workflow
 
 _EXPRESSION = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
 _AUTHOR = r"(?:message|author(?:\.(?:name|email))?|committer(?:\.(?:name|email))?)"
@@ -97,6 +97,38 @@ _UNTRUSTED_CHECKOUT = re.compile(
     r"|refs/pull/",
     re.IGNORECASE,
 )
+_PRIVILEGED_TRIGGERS = frozenset({"pull_request_target", "workflow_run", "issue_comment"})
+_STEP_OUTPUT = re.compile(r"\bsteps\.([\w-]+)\.outputs\.", re.IGNORECASE)
+# A step whose output is the head commit or branch of the pull request (typical for issue_comment).
+_PR_HEAD_RESOLVER = re.compile(
+    r"pull-request-comment-branch|\bpulls\.get\b|\bgh\s+pr\s+(?:view|checkout)\b"
+    r"|\bgh\s+api\b[^\n]*/pulls/|\bhead\.(?:sha|ref)\b|\bhead_sha\b|\bheadRef(?:Oid|Name)\b"
+    r"|refs/pull/",
+    re.IGNORECASE,
+)
+# Commit or repository of the PR head. A bare branch name does not count for fetch, pull and
+# clone: those read it from the base repository, where a fork's branch does not exist.
+_PR_COMMIT = (
+    r"github\.event\.pull_request\.head\.(?:sha|repo)"
+    r"|github\.event\.workflow_run\.head_(?:sha|repository)|refs/pull/"
+)
+_PR_CODE_COMMAND = re.compile(
+    r"\bgh\s+pr\s+checkout\b"
+    r"|\bgit\s+(?:-\S+\s+)*(?:fetch|pull)\b(?:[^\n]|\\\n)*?(?<![\w.-])(?:refs/)?pull/"
+    rf"|\bgit\s+(?:-\S+\s+)*(?:fetch|pull|clone)\b(?:[^\n]|\\\n)*?(?:{_PR_COMMIT})"
+    r"|\bgit\s+(?:-\S+\s+)*(?:checkout|switch|reset|merge|cherry-pick|worktree\s+add)\b"
+    rf"(?:[^\n]|\\\n)*?(?:{_UNTRUSTED_CHECKOUT.pattern})",
+    re.IGNORECASE,
+)
+
+
+def _job_id(step: Step) -> str | None:
+    return step.job.id if step.job else None
+
+
+def _resolver_text(step: Step) -> str:
+    script = step.inputs.get("script")
+    return "\n".join([step.uses or "", step.run or "", script if isinstance(script, str) else ""])
 
 
 class PwnRequest(Rule):
@@ -104,8 +136,9 @@ class PwnRequest(Rule):
     title = "Untrusted pull request code checked out in a privileged workflow"
     severity = Severity.CRITICAL
     description = (
-        "A workflow triggered by pull_request_target or workflow_run runs with a write token "
-        "and secrets, but checks out the code of the pull request, which the attacker controls."
+        "A workflow triggered by pull_request_target, workflow_run or issue_comment runs with a "
+        "write token and secrets, but checks out or fetches the code of the pull request, which "
+        "the attacker controls."
     )
     remediation = (
         "Use the pull_request trigger for workflows that build or test PR code, or split the "
@@ -113,22 +146,63 @@ class PwnRequest(Rule):
     )
 
     def check(self, workflow: Workflow) -> Iterable[Finding]:
-        triggers = workflow.triggers & {"pull_request_target", "workflow_run"}
+        triggers = workflow.triggers & _PRIVILEGED_TRIGGERS
         if not triggers:
             return
         trigger = sorted(triggers)[0]
+        resolvers: dict[tuple[str | None, str], str] = {}
         for step in workflow.steps():
-            if not (step.uses or "").lower().startswith("actions/checkout@"):
+            if (step.uses or "").lower().startswith("actions/checkout@"):
+                yield from self._check_checkout(workflow, step, trigger, resolvers)
+            if step.run is not None:
+                yield from self._check_run(workflow, step, trigger)
+            step_id = step.data.get("id")
+            if isinstance(step_id, str):
+                resolvers[(_job_id(step), step_id)] = _resolver_text(step)
+
+    def _check_checkout(
+        self,
+        workflow: Workflow,
+        step: Step,
+        trigger: str,
+        resolvers: dict[tuple[str | None, str], str],
+    ) -> Iterator[Finding]:
+        for name in ("ref", "repository"):
+            value = step.inputs.get(name)
+            if not isinstance(value, str):
                 continue
-            for name in ("ref", "repository"):
-                value = step.inputs.get(name)
-                if isinstance(value, str) and _UNTRUSTED_CHECKOUT.search(value):
+            path = (*step.path, "with", name)
+            if _UNTRUSTED_CHECKOUT.search(value):
+                yield self.finding(
+                    workflow,
+                    path,
+                    f"actions/checkout of untrusted pull request code in a '{trigger}' workflow",
+                )
+                continue
+            for output in _STEP_OUTPUT.finditer(value):
+                source = resolvers.get((_job_id(step), output.group(1)), "")
+                if _PR_HEAD_RESOLVER.search(source):
                     yield self.finding(
                         workflow,
-                        (*step.path, "with", name),
-                        f"actions/checkout of untrusted pull request code in a '{trigger}' "
-                        "workflow",
+                        path,
+                        f"actions/checkout of '{name}' from step '{output.group(1)}', which "
+                        f"resolves the pull request head, in a '{trigger}' workflow",
                     )
+                    break
+
+    def _check_run(self, workflow: Workflow, step: Step, trigger: str) -> Iterator[Finding]:
+        script = step.run or ""
+        for match in _PR_CODE_COMMAND.finditer(script):
+            line_start = script.rfind("\n", 0, match.start()) + 1
+            if script[line_start : match.start()].lstrip().startswith("#"):
+                continue
+            yield self.finding(
+                workflow,
+                (*step.path, "run"),
+                f"run script fetches or checks out untrusted pull request code in a "
+                f"'{trigger}' workflow",
+                line_offset=script.count("\n", 0, match.start()),
+            )
 
 
 _SHELL = r"(?:ba|z|da|k)?sh"

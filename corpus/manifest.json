@@ -80,7 +80,8 @@
   {
     "file": "tj-actions-mutable-tag.yml",
     "expected_rules": [
-      "GW003"
+      "GW003",
+      "GW014"
     ],
     "source": "https://github.com/advisories/GHSA-mrrh-fwg8-r2c3",
     "summary": "third-party action referenced by a movable version tag that attackers re-pointed to a malicious commit (CVE-2025-30066)."
