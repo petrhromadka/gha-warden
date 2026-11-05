@@ -33,7 +33,15 @@ def _looks_like_workflow(path: Path) -> bool:
         return True
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, yaml.YAMLError, ValueError, RecursionError):
+    except (
+        OSError,
+        UnicodeDecodeError,
+        yaml.YAMLError,
+        ValueError,
+        RecursionError,
+        KeyError,  # `!!bool x`
+        AttributeError,  # `!!timestamp x`
+    ):
         return True
     return isinstance(data, dict) and bool({"jobs", "runs"} & data.keys())
 

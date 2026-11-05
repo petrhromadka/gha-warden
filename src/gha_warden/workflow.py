@@ -104,6 +104,8 @@ class Workflow:
             raise WorkflowError("invalid YAML: nesting too deep") from exc
         except ValueError as exc:  # e.g. an integer literal over Python's digit limit
             raise WorkflowError(f"invalid YAML: {exc}") from exc
+        except (KeyError, AttributeError) as exc:  # PyYAML on `!!bool x`, `!!timestamp x`
+            raise WorkflowError("invalid YAML: value does not match its explicit tag") from exc
         finally:
             if loader is not None:
                 loader.dispose()
