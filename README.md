@@ -59,7 +59,7 @@ gha-warden [PATHS...] [--format text|json|sarif|github|markdown]
 | `--ignore RULE_ID` | Skip a rule entirely. Repeat the option or separate IDs with commas (`--ignore GW005,GW003`); IDs are case-insensitive and an unknown ID is a usage error. |
 | `--config PATH` | Read settings from this TOML file instead of `.gha-warden.toml`. |
 | `--output FILE` | Write the report to a file instead of stdout. |
-| `--no-color` | Disable colors. Colors are only used when stdout is a terminal, and never with `--output`; the `NO_COLOR` environment variable is respected too. |
+| `--no-color` | Disable colors. Colors are only used when stdout is a terminal, and never with `--output`; a non-empty `NO_COLOR` environment variable disables them too. |
 | `--version` | Print the version and exit. |
 
 ## Example output
