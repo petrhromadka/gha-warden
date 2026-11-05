@@ -18,9 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-# rich comes from the PEP 723 header above, not from the project environment ty checks.
-from rich.console import Console  # ty: ignore[import-not-found]
-from rich.text import Text  # ty: ignore[import-not-found]
+from rich.console import Console
+from rich.text import Text
 
 ROOT = Path(__file__).resolve().parent.parent
 TARGET = "examples/vulnerable"

@@ -220,6 +220,13 @@ Add a YAML comment on the line of the finding:
 | 1 | One or more findings |
 | 2 | Usage error, or a path that does not exist or a file that cannot be read or parsed (the remaining files are still scanned and reported) |
 
+## Documentation
+
+- [Rule reference](docs/rules/README.md): one page per rule with a vulnerable and a fixed example and references.
+- [Real-world scan](docs/real-world-scan.md): results and false-positive triage on 1068 workflow files from 42 popular repositories.
+- [Regression corpus](corpus/README.md): minimal reproductions of 13 publicly documented incidents and advisories, checked in CI.
+- [Threat model](docs/threat-model.md) and [supply-chain notes](docs/supply-chain.md): what gha-warden covers, and how its own releases are built and attested.
+
 ## Development
 
 ```sh
