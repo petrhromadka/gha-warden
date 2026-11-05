@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import random
+import re
 from pathlib import Path
 from typing import Any
 
@@ -229,3 +232,76 @@ ODD_VALID = {
 @pytest.mark.parametrize("text", ODD_VALID.values(), ids=ODD_VALID.keys())
 def test_odd_but_valid_yaml_does_not_crash(text: str) -> None:
     scan_text(text)
+
+
+# The Atheris harness in fuzz/ (run in CI on Linux); its check is plain Python and runs here.
+ROOT = Path(__file__).resolve().parent.parent
+_spec = importlib.util.spec_from_file_location("fuzz_scan", ROOT / "fuzz" / "fuzz_scan.py")
+assert _spec is not None and _spec.loader is not None
+fuzz_scan = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(fuzz_scan)
+
+SEEDS = sorted([*ROOT.glob("corpus/*.yml"), *ROOT.glob("examples/**/*.yml")])
+_DICT_ESCAPE = r'\\(?:[\\"]|x[0-9A-Fa-f]{2})'
+_DICT_ENTRY = re.compile(rf'"((?:[^"\\]|{_DICT_ESCAPE})*)"')
+
+
+def dictionary_tokens() -> list[bytes]:
+    """Parse fuzz/yaml.dict the way libFuzzer does; a malformed line fails the test."""
+    tokens = []
+    for line in (ROOT / "fuzz" / "yaml.dict").read_text(encoding="utf-8").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        match = _DICT_ENTRY.fullmatch(line)
+        assert match, f"malformed dictionary line: {line!r}"
+        raw = re.sub(
+            _DICT_ESCAPE,
+            lambda m: chr(int(m[0][2:], 16)) if m[0][1] == "x" else m[0][1],
+            match[1],
+        )
+        tokens.append(raw.encode("latin-1"))
+    return tokens
+
+
+def mutate(rng: random.Random, data: bytes, tokens: list[bytes], seeds: list[bytes]) -> bytes:
+    """A few libFuzzer-style edits: flip, insert, delete, insert a token, splice another seed."""
+    buf = bytearray(data)
+    for _ in range(rng.randint(1, 8)):
+        pos = rng.randint(0, len(buf))
+        match rng.randrange(5):
+            case 0 if buf:
+                buf[min(pos, len(buf) - 1)] = rng.randrange(256)
+            case 1:
+                buf[pos:pos] = bytes([rng.randrange(256)])
+            case 2:
+                del buf[pos : pos + rng.randint(1, 16)]
+            case 3:
+                buf[pos:pos] = rng.choice(tokens)
+            case _:
+                other = rng.choice(seeds)
+                start = rng.randint(0, len(other))
+                buf[pos:pos] = other[start : start + rng.randint(1, 200)]
+    return bytes(buf)
+
+
+def test_fuzz_harness_accepts_every_seed() -> None:
+    assert len(SEEDS) >= 20
+    for seed in SEEDS:
+        fuzz_scan.check_one(seed.read_bytes())
+    # Two and three workflows in one input exercise `link_workflows`.
+    joined = fuzz_scan.SEPARATOR.encode().join(seed.read_bytes() for seed in SEEDS[:3])
+    fuzz_scan.check_one(joined)
+
+
+def test_fuzz_harness_on_mutated_seeds() -> None:
+    rng = random.Random(20261105)  # noqa: S311 - reproducible test input, not cryptography
+    tokens = dictionary_tokens()
+    seeds = [seed.read_bytes() for seed in SEEDS]
+    for _ in range(400):
+        data = mutate(rng, rng.choice(seeds), tokens, seeds)
+        fuzz_scan.check_one(data)
+
+
+def test_fuzz_harness_flags_a_workflow_command_line() -> None:
+    with pytest.raises(AssertionError, match="workflow command"):
+        fuzz_scan._assert_no_workflow_command("ok\n  ::add-mask::x\n", "text")

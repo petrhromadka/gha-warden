@@ -67,4 +67,4 @@ line-ending = "lf"
 
 [tool.ty.src]
 # scripts/ holds PEP 723 scripts whose dependencies (rich) are not project dependencies.
-include = ["src", "tests"]
+include = ["src", "tests", "fuzz"]
