@@ -1,4 +1,4 @@
-"""Output formatters: text, json, sarif."""
+"""Output formatters: text, json, sarif, github annotations, markdown."""
 
 from __future__ import annotations
 
@@ -21,6 +21,12 @@ _SECURITY_SEVERITY = {
 }
 _SARIF_LEVEL = {
     Severity.LOW: "note",
+    Severity.MEDIUM: "warning",
+    Severity.HIGH: "error",
+    Severity.CRITICAL: "error",
+}
+_GITHUB_COMMAND = {
+    Severity.LOW: "notice",
     Severity.MEDIUM: "warning",
     Severity.HIGH: "error",
     Severity.CRITICAL: "error",
@@ -137,3 +143,57 @@ def format_sarif(findings: Sequence[Finding]) -> str:
         ],
     }
     return json.dumps(document, indent=2) + "\n"
+
+
+def _escape_data(text: str) -> str:
+    """Escape a workflow-command message the way actions/toolkit does."""
+    return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _escape_property(text: str) -> str:
+    return _escape_data(text).replace(":", "%3A").replace(",", "%2C")
+
+
+def format_github(findings: Sequence[Finding]) -> str:
+    """One workflow-command annotation per finding."""
+    titles = {rule.id: rule.title for rule in ALL_RULES}
+    lines = []
+    for f in findings:
+        title = _escape_property(f"{f.rule_id} {titles.get(f.rule_id, '')}".strip())
+        lines.append(
+            f"::{_GITHUB_COMMAND[f.severity]} file={_escape_property(f.path)},line={f.line},"
+            f"col={f.column},title={title}::{_escape_data(f.message)}\n"
+        )
+    return "".join(lines)
+
+
+def _escape_cell(text: str) -> str:
+    return text.replace("|", r"\|").replace("\r", "").replace("\n", "<br>")
+
+
+def format_markdown(findings: Sequence[Finding], *, files_scanned: int) -> str:
+    """Summary and findings tables for `$GITHUB_STEP_SUMMARY` or a pull request comment."""
+    files = f"{files_scanned} file{'s' if files_scanned != 1 else ''}"
+    out = ["## gha-warden", ""]
+    if not findings:
+        out.append(f"No findings in {files}.")
+        return "\n".join(out) + "\n"
+    out += [
+        f"{len(findings)} finding{'s' if len(findings) != 1 else ''} in {files}.",
+        "",
+        "| Severity | Count |",
+        "|----------|-------|",
+    ]
+    out += [f"| {name.capitalize()} | {n} |" for name, n in _summary_counts(findings).items()]
+    out += [
+        "",
+        "| Severity | Rule | Location | Message |",
+        "|----------|------|----------|---------|",
+    ]
+    for f in findings:
+        location = _escape_cell(f"{f.path}:{f.line}")
+        out.append(
+            f"| {f.severity.label.capitalize()} | {f.rule_id} | {location} "
+            f"| {_escape_cell(f.message)} |"
+        )
+    return "\n".join(out) + "\n"
