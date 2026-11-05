@@ -1,0 +1,33 @@
+name: Bug report
+description: gha-warden crashed, missed a problem, or behaved unexpectedly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include what you expected instead. For a security vulnerability in gha-warden itself, use the private reporting link in SECURITY.md instead.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and workflow snippet
+      description: The command you ran and the smallest YAML that reproduces the problem. Remove anything private.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or traceback
+      render: text
+    validations:
+      required: false
+  - type: input
+    id: environment
+    attributes:
+      label: Version, Python version and OS
+      placeholder: "gha-warden 0.1.0, Python 3.12, Windows 11"
+    validations:
+      required: false
