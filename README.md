@@ -126,7 +126,7 @@ min-severity = "medium"   # low, medium, high or critical
 exclude = ["examples/*", "*/legacy/*.yml"]   # paths to skip
 ```
 
-`exclude` patterns are shell-style globs matched against the path as shown in the report (relative to the current directory, with `/` separators); `*` also matches across directories. Precedence: command-line flags beat the config file, which beats the defaults. `--ignore` replaces the config's `ignore` list rather than adding to it, and `--min-severity` replaces `min-severity`. An unreadable or invalid config (bad TOML, unknown key, unknown rule ID, wrong type) exits with code 2.
+`exclude` patterns are shell-style globs matched against the path as shown in the report (relative to the repository root, else the current directory, with `/` separators); `*` also matches across directories. Precedence: command-line flags beat the config file, which beats the defaults. `--ignore` replaces the config's `ignore` list rather than adding to it, and `--min-severity` replaces `min-severity`. An unreadable or invalid config (bad TOML, unknown key, unknown rule ID, wrong type) exits with code 2.
 
 ### Upload SARIF to GitHub code scanning
 

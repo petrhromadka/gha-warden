@@ -131,7 +131,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     scanned = 0
     for file in files:
         display = _display_path(file)
-        if config.is_excluded(_relative_to_cwd(file)):
+        if config.is_excluded(display):
             continue
         try:
             workflow = Workflow(display, file.read_text(encoding="utf-8"))

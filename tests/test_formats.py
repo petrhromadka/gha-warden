@@ -93,13 +93,15 @@ def test_config_applies_and_cli_overrides(
 def test_config_exclude_and_explicit_path(
     tmp_path: Path, write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # Patterns match the path as shown in the report: relative to the repository root, not the cwd.
+    (tmp_path / ".git").mkdir()
     write_workflow(VULNERABLE, "keep.yml")
     write_workflow(VULNERABLE, "skip/bad.yml")
     config = tmp_path / "custom.toml"
-    config.write_text('exclude = ["*/skip/*"]\n')
+    config.write_text('exclude = ["skip/*"]\n')
     code, out, _ = run(capsys, "--config", str(config), "--format", "github", str(tmp_path))
     assert code == 1
-    assert "keep.yml" in out
+    assert "file=keep.yml" in out
     assert "skip" not in out
 
 
