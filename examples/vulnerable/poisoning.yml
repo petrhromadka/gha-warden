@@ -1,0 +1,35 @@
+# Demonstrates: GW011 (cache restored in a privileged workflow),
+# GW012 (artifact from another run written to GITHUB_ENV and executed).
+# Also reported: GW003 (tags instead of commit SHAs).
+# DO NOT copy this workflow. It is intentionally vulnerable.
+name: Post CI report
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      # A pull request can write this cache entry, and this job restores it with a write token.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-fake-key
+
+      # The artifact comes from a run of the pull request's code, so its content is attacker input.
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: report
+
+      - run: cat report/env.txt >> "$GITHUB_ENV"
+
+      - run: bash report/publish.sh
