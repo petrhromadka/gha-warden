@@ -55,6 +55,20 @@ def test_gw013_flags_digest_that_is_not_64_hex(findings_for: FindingsFor) -> Non
     assert [f.line for f in findings_for("GW013", text)] == [6]
 
 
+def test_gw013_flags_tag_built_from_expression(findings_for: FindingsFor) -> None:
+    # The repository part is literal and a tag follows it, so no expression value can make
+    # this a digest.
+    text = _workflow(
+        "    container: ghcr.io/example-org/build:${{ needs.setup.outputs.tag }}\n"
+        "    services:\n"
+        "      db:\n"
+        "        image: postgres:${{ matrix.version }}-alpine\n"
+        "    steps:\n"
+        "      - run: echo hi\n"
+    )
+    assert [f.line for f in findings_for("GW013", text)] == [6, 9]
+
+
 def test_gw013_accepts_digest_pinned_and_expressions(findings_for: FindingsFor) -> None:
     text = _workflow(
         f"    container: node:22@{DIGEST}\n"
@@ -63,6 +77,10 @@ def test_gw013_accepts_digest_pinned_and_expressions(findings_for: FindingsFor) 
         f"        image: postgres@{DIGEST}\n"
         "      cache:\n"
         "        image: ${{ vars.CACHE_IMAGE }}\n"
+        "      by-digest:\n"
+        "        image: example/img@${{ inputs.digest }}\n"
+        "      by-name:\n"
+        "        image: registry.example:5000/${{ matrix.name }}:1\n"
         "      other:\n"
         "        ports: ['80:80']\n"
         "      disabled:\n"

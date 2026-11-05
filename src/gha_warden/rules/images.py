@@ -51,8 +51,14 @@ class UnpinnedContainerImage(Rule):
                     yield from self._check_image(workflow, path, service.get("image"))
 
     def _check_image(self, workflow: Workflow, path: NodePath, image: object) -> Iterable[Finding]:
-        if not isinstance(image, str) or "${{" in image or _IMAGE_DIGEST.fullmatch(image.strip()):
+        if not isinstance(image, str) or _IMAGE_DIGEST.fullmatch(image.strip()):
             return
+        if "${{" in image:
+            # Only report it when the literal text before the expression already ends in a
+            # tag (`name:${{ ... }}`) and there is no `@`, so no value can turn it into a digest.
+            literal = image.split("${{", 1)[0]
+            if "@" in image or ":" not in literal.rsplit("/", 1)[-1]:
+                return
         yield self.finding(workflow, path, f"Container image '{image}' is not pinned by digest")
 
 
