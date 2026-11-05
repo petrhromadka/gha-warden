@@ -1,0 +1,39 @@
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz (Atheris, 15 minutes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # atheris 3.1.0 has wheels for CPython 3.12 to 3.14 on manylinux x86_64.
+      UV_PYTHON: "3.12"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked --group fuzz
+      - name: Fuzz the scanner
+        run: |
+          mkdir -p fuzz/work fuzz/artifacts
+          uv run --locked --group fuzz python fuzz/fuzz_scan.py \
+            -dict=fuzz/yaml.dict -max_total_time=900 -timeout=30 -max_len=8192 \
+            -print_final_stats=1 -artifact_prefix=fuzz/artifacts/ \
+            fuzz/work corpus examples
+      - name: Upload crash inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashes
+          path: fuzz/artifacts/
+          if-no-files-found: ignore
+          retention-days: 30
