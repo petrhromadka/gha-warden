@@ -10,7 +10,7 @@ import pytest
 
 from gha_warden.cli import main
 from gha_warden.models import Finding, Severity
-from gha_warden.report import format_github, format_markdown
+from gha_warden.report import format_github, format_markdown, format_text
 from tests.conftest import VULNERABLE
 
 WriteWorkflow = Callable[..., Path]
@@ -138,3 +138,44 @@ def test_missing_explicit_config_exits_two(
     )
     assert code == 2
     assert "cannot read config" in err
+
+
+INJECTING_CONTAINER = (
+    "name: t\non: push\njobs:\n  a:\n    runs-on: x\n"
+    '    container: "x\\n::error title=pwned::injected\\n"\n    steps: []\n'
+)
+
+
+@pytest.mark.parametrize("fmt", ["text", "markdown", "github"])
+def test_file_content_cannot_start_a_workflow_command(
+    write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str], fmt: str
+) -> None:
+    path = str(write_workflow(INJECTING_CONTAINER))
+    code, out, _ = run(capsys, "--format", fmt, "--no-color", path)
+    assert code == 1
+    assert "pwned" in out
+    if fmt == "github":
+        # The annotation format is meant to be read as commands: file content is escaped inside.
+        assert all(
+            line.startswith(("::warning file=", "::error file=")) for line in out.splitlines()
+        )
+        assert "%0A::error title=pwned" in out
+    else:
+        assert not any(line.startswith("::") for line in out.splitlines())
+        assert ("<br>" if fmt == "markdown" else "\\n") + "::error title=pwned" in out
+
+
+def test_control_characters_are_escaped_in_text_output() -> None:
+    out = format_text(
+        [finding(message="a\r\nb\tc\x1b[2Jd\x85e\u2028f")], files_scanned=1, color=False
+    )
+    assert "a\\r\\nb\\tc\\x1b[2Jd\\x85e\\u2028f" in out
+    assert len(out.splitlines()) == 5
+
+
+def test_error_messages_cannot_start_a_workflow_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, _, err = run(capsys, "evil\n::error::x.yml")
+    assert code == 2
+    assert not any(line.startswith("::") for line in err.splitlines())

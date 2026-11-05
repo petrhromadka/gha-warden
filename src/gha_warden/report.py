@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import re
 from collections import Counter
 from collections.abc import Sequence
 
@@ -39,6 +40,27 @@ _COLORS = {
 }
 
 
+_CONTROL = re.compile("[\x00-\x1f\x7f-\x9f\u2028\u2029]")
+_NAMED_ESCAPES = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
+
+
+def neutralize(text: str) -> str:
+    r"""Render control characters as visible escapes (`\n`, `\x1b`).
+
+    Findings embed text from the scanned file. Printed raw, a newline in it would let the file
+    start a line of its own in the CI log, e.g. a `::add-mask::` workflow command.
+    """
+
+    def escape(match: re.Match[str]) -> str:
+        char = match.group()
+        if char in _NAMED_ESCAPES:
+            return _NAMED_ESCAPES[char]
+        code = ord(char)
+        return f"\\x{code:02x}" if code <= 0xFF else f"\\u{code:04x}"
+
+    return _CONTROL.sub(escape, text)
+
+
 def _summary_counts(findings: Sequence[Finding]) -> dict[str, int]:
     counts = Counter(f.severity for f in findings)
     return {s.label: counts[s] for s in sorted(Severity, reverse=True)}
@@ -50,11 +72,11 @@ def format_text(findings: Sequence[Finding], *, files_scanned: int, color: bool)
 
     out: list[str] = []
     for path, group in itertools.groupby(findings, key=lambda f: f.path):
-        out.append(paint(path, "1;4"))
+        out.append(paint(neutralize(path), "1;4"))
         for f in group:
             label = paint(f"{f.severity.label:<8}", _COLORS[f.severity])
-            out.append(f"  {f'{f.line}:{f.column}':<8}{label} {f.rule_id}  {f.message}")
-            out.append(paint(f"      fix: {f.remediation}", "2"))
+            out.append(f"  {f'{f.line}:{f.column}':<8}{label} {f.rule_id}  {neutralize(f.message)}")
+            out.append(paint(f"      fix: {neutralize(f.remediation)}", "2"))
         out.append("")
     files = f"{files_scanned} file{'s' if files_scanned != 1 else ''}"
     if findings:
@@ -175,7 +197,7 @@ def format_github(findings: Sequence[Finding]) -> str:
 
 
 def _escape_cell(text: str) -> str:
-    return text.replace("|", r"\|").replace("\r", "").replace("\n", "<br>")
+    return neutralize(text.replace("|", r"\|").replace("\r", "").replace("\n", "<br>"))
 
 
 def format_markdown(findings: Sequence[Finding], *, files_scanned: int) -> str:

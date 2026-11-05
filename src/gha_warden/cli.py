@@ -17,6 +17,7 @@ from gha_warden.report import (
     format_markdown,
     format_sarif,
     format_text,
+    neutralize,
 )
 from gha_warden.rules import ALL_RULES
 from gha_warden.scan import collect_files, scan_workflow
@@ -141,7 +142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             findings += scan_workflow(workflow, ignore=ignore, min_severity=min_severity)
 
     for message in errors:
-        print(f"gha-warden: error: {message}", file=sys.stderr)
+        print(f"gha-warden: error: {neutralize(message)}", file=sys.stderr)
 
     if args.format == "json":
         report = format_json(findings, files_scanned=scanned)
