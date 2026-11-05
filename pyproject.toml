@@ -46,6 +46,10 @@ dev = [
     "ruff>=0.17.4",
     "ty>=0.0.98",
 ]
+# Not installed by default (`uv sync --group fuzz`): atheris ships manylinux x86_64 wheels only.
+fuzz = [
+    "atheris>=3.1.0 ; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 
 [tool.ruff]
 line-length = 100
