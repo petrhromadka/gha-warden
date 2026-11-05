@@ -1,0 +1,59 @@
+[project]
+name = "gha-warden"
+version = "0.1.0"
+description = "Static security auditor for GitHub Actions workflows: finds injection and supply-chain risks."
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Petr Hromádka", email = "109349500+petrhromadka@users.noreply.github.com" }
+]
+keywords = ["github-actions", "security", "static-analysis", "sarif", "supply-chain", "linter"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6.0.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/petrhromadka/gha-warden"
+Repository = "https://github.com/petrhromadka/gha-warden"
+Issues = "https://github.com/petrhromadka/gha-warden/issues"
+
+[project.scripts]
+gha-warden = "gha_warden.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+    "ty>=0.0.98",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
