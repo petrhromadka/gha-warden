@@ -1,0 +1,6 @@
+- id: gha-warden
+  name: gha-warden
+  description: Audit GitHub Actions workflows for supply-chain and injection risks.
+  language: python
+  entry: gha-warden
+  files: ^(\.github/workflows/.*\.ya?ml|action\.ya?ml)$
