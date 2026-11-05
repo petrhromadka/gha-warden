@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import sys
 from collections.abc import Sequence
@@ -130,9 +131,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         min_severity = config.min_severity or Severity.LOW
     findings: list[Finding] = []
     workflows: list[Workflow] = []
+    # Excluded files are parsed too: their findings are hidden, but they still run on GitHub
+    # and so still count as upstream workflows for `workflow_run` analysis.
+    excluded: list[Workflow] = []
     for file in files:
         display = _display_path(file)
         if config.is_excluded(display):
+            # An unreadable excluded file is skipped silently, as before.
+            with contextlib.suppress(OSError, UnicodeDecodeError, WorkflowError):
+                excluded.append(Workflow(display, file.read_text(encoding="utf-8")))
             continue
         try:
             workflow = Workflow(display, file.read_text(encoding="utf-8"))
@@ -146,7 +153,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 continue
             workflows.append(workflow)
 
-    link_workflows(workflows)
+    link_workflows([*workflows, *excluded])
     scanned = len(workflows)
     for workflow in workflows:
         findings += scan_workflow(workflow, ignore=ignore, min_severity=min_severity)

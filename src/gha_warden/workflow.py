@@ -69,9 +69,17 @@ UNTRUSTED_TRIGGERS = frozenset(
         "discussion_comment",
         "fork",
         "watch",
+        # Anyone can edit an open wiki; outside apps can send check and status events;
+        # a merge queue runs pull request code.
+        "gollum",
+        "check_run",
+        "check_suite",
+        "status",
+        "merge_group",
     }
 )
-_GLOB_CHARS = frozenset("*?[")
+# GitHub filter-pattern syntax: a name containing any of these is a pattern, not a literal.
+_PATTERN_CHARS = frozenset("*?+![]\\")
 
 
 def _as_dict(value: object) -> dict[str, Any]:
@@ -137,8 +145,8 @@ class Workflow:
         if not isinstance(names, list) or not names:
             return True
         for name in names:
-            upstream = self.scanned.get(name) if isinstance(name, str) else None
-            if not upstream or _GLOB_CHARS & set(str(name)):
+            upstream = self.scanned.get(name.casefold()) if isinstance(name, str) else None
+            if not upstream or _PATTERN_CHARS & set(str(name)):
                 return True
             if any(workflow._started_by_untrusted(visiting) for workflow in upstream):
                 return True
@@ -288,7 +296,9 @@ def link_workflows(workflows: Sequence[Workflow]) -> None:
     scanned: dict[str, list[Workflow]] = {}
     for workflow in workflows:
         if "on" in workflow.data:
-            scanned.setdefault(workflow.name, []).append(workflow)
+            # Grouped case-insensitively: whether GitHub folds case is undocumented, and treating
+            # 'CI' and 'ci' as one workflow can only keep a finding, never hide one.
+            scanned.setdefault(workflow.name.casefold(), []).append(workflow)
     for workflow in workflows:
         workflow.scanned = scanned
 
