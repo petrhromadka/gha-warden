@@ -65,6 +65,8 @@ def test_gw013_accepts_digest_pinned_and_expressions(findings_for: FindingsFor) 
         "        image: ${{ vars.CACHE_IMAGE }}\n"
         "      other:\n"
         "        ports: ['80:80']\n"
+        "      disabled:\n"
+        "        image: ''\n"
         "    steps:\n"
         "      - run: echo hi\n"
     )
