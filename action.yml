@@ -10,8 +10,10 @@ inputs:
     description: Space-separated workflow files or directories to scan.
     default: .github/workflows
   min-severity:
-    description: Lowest severity to report (low, medium, high, critical).
-    default: low
+    description: >-
+      Lowest severity to report (low, medium, high, critical). Empty uses min-severity from
+      .gha-warden.toml, else low.
+    default: ""
   format:
     description: Output format (text, json, sarif, github, markdown).
     default: sarif
@@ -50,12 +52,32 @@ runs:
         # `shell: bash` runs with -e; exit code 1 (findings) is handled below, so turn -e off.
         set +e -uo pipefail
         read -r -a targets <<< "$GW_PATHS"
+        # Boolean inputs are compared case-insensitively, like the `if:` expressions are.
+        upload_sarif="${GW_UPLOAD_SARIF,,}"
+        annotations_enabled="${GW_ANNOTATIONS,,}"
         report="${RUNNER_TEMP}/gha-warden-report.${GW_FORMAT}"
         sarif="${RUNNER_TEMP}/gha-warden.sarif"
 
+        # Without --min-severity the .gha-warden.toml value (else low) applies.
+        severity_args=()
+        if [ -n "$GW_MIN_SEVERITY" ]; then
+          severity_args=(--min-severity "$GW_MIN_SEVERITY")
+        fi
+
         run_scan() {
           uvx --from "${GITHUB_ACTION_PATH}" gha-warden "${targets[@]}" \
-            --min-severity "$GW_MIN_SEVERITY" --format "$1" --output "$2" --no-color
+            "${severity_args[@]}" --format "$1" --output "$2" --no-color
+        }
+
+        # A report quotes text from the scanned files. Pause workflow-command processing under
+        # a random token while printing it, so that text cannot act as ::add-mask:: and friends.
+        print_report() {
+          local token
+          token="$(openssl rand -hex 16 2>/dev/null)" || token=""
+          [ -n "$token" ] || token="${RANDOM}${RANDOM}${RANDOM}"
+          echo "::stop-commands::${token}"
+          cat "$1"
+          echo "::${token}::"
         }
 
         run_scan "$GW_FORMAT" "$report"
@@ -65,8 +87,13 @@ runs:
           exit "$code"
         fi
         if [ "$GW_FORMAT" != "sarif" ]; then
-          cat "$report"
-          if [ "$GW_UPLOAD_SARIF" = "true" ]; then
+          if [ "$GW_FORMAT" = "github" ]; then
+            # Annotations are workflow commands on purpose; gha-warden escapes their content.
+            cat "$report"
+          else
+            print_report "$report"
+          fi
+          if [ "$upload_sarif" = "true" ]; then
             run_scan sarif "$sarif" || [ $? -eq 1 ] || exit 2
           fi
         else
@@ -78,7 +105,7 @@ runs:
           run_scan markdown "$summary" || [ $? -eq 1 ] || exit 2
           cat "$summary" >> "$GITHUB_STEP_SUMMARY"
         fi
-        if [ "$GW_ANNOTATIONS" = "true" ] && [ "$GW_FORMAT" != "github" ]; then
+        if [ "$annotations_enabled" = "true" ] && [ "$GW_FORMAT" != "github" ]; then
           annotations="${RUNNER_TEMP}/gha-warden-annotations.txt"
           run_scan github "$annotations" || [ $? -eq 1 ] || exit 2
           cat "$annotations"

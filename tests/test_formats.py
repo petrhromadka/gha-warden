@@ -10,7 +10,7 @@ import pytest
 
 from gha_warden.cli import main
 from gha_warden.models import Finding, Severity
-from gha_warden.report import format_github, format_markdown
+from gha_warden.report import format_github, format_markdown, format_text
 from tests.conftest import VULNERABLE
 
 WriteWorkflow = Callable[..., Path]
@@ -93,13 +93,15 @@ def test_config_applies_and_cli_overrides(
 def test_config_exclude_and_explicit_path(
     tmp_path: Path, write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # Patterns match the path as shown in the report: relative to the repository root, not the cwd.
+    (tmp_path / ".git").mkdir()
     write_workflow(VULNERABLE, "keep.yml")
     write_workflow(VULNERABLE, "skip/bad.yml")
     config = tmp_path / "custom.toml"
-    config.write_text('exclude = ["*/skip/*"]\n')
+    config.write_text('exclude = ["skip/*"]\n')
     code, out, _ = run(capsys, "--config", str(config), "--format", "github", str(tmp_path))
     assert code == 1
-    assert "keep.yml" in out
+    assert "file=keep.yml" in out
     assert "skip" not in out
 
 
@@ -138,3 +140,63 @@ def test_missing_explicit_config_exits_two(
     )
     assert code == 2
     assert "cannot read config" in err
+
+
+INJECTING_CONTAINER = (
+    "name: t\non: push\njobs:\n  a:\n    runs-on: x\n"
+    '    container: "x\\n::error title=pwned::injected\\n"\n    steps: []\n'
+)
+
+
+@pytest.mark.parametrize("fmt", ["text", "markdown", "github"])
+def test_file_content_cannot_start_a_workflow_command(
+    write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str], fmt: str
+) -> None:
+    path = str(write_workflow(INJECTING_CONTAINER))
+    code, out, _ = run(capsys, "--format", fmt, "--no-color", path)
+    assert code == 1
+    assert "pwned" in out
+    if fmt == "github":
+        # The annotation format is meant to be read as commands: file content is escaped inside.
+        assert all(
+            line.startswith(("::warning file=", "::error file=")) for line in out.splitlines()
+        )
+        assert "%0A::error title=pwned" in out
+    else:
+        assert not any(line.startswith("::") for line in out.splitlines())
+        assert ("<br>" if fmt == "markdown" else "\\n") + "::error title=pwned" in out
+
+
+def test_control_characters_are_escaped_in_text_output() -> None:
+    out = format_text(
+        [finding(message="a\r\nb\tc\x1b[2Jd\x85e\u2028f")], files_scanned=1, color=False
+    )
+    assert "a\\r\\nb\\tc\\x1b[2Jd\\x85e\\u2028f" in out
+    assert len(out.splitlines()) == 5
+
+
+def test_error_messages_cannot_start_a_workflow_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code, _, err = run(capsys, "evil\n::error::x.yml")
+    assert code == 2
+    assert not any(line.startswith("::") for line in err.splitlines())
+
+
+@pytest.mark.parametrize(
+    "content",
+    # The TOML escape \n (backslash, n) decodes to a newline inside the key or rule ID.
+    ['"a\\n::add-mask::CFGKEY" = 1\n', 'ignore = ["GW001\\n::warning::CFGRULE"]\n'],
+    ids=["unknown-key", "unknown-rule"],
+)
+def test_config_errors_cannot_start_a_workflow_command(
+    tmp_path: Path,
+    write_workflow: WriteWorkflow,
+    capsys: pytest.CaptureFixture[str],
+    content: str,
+) -> None:
+    config = tmp_path / "evil.toml"
+    config.write_text(content)
+    code, _, err = run(capsys, "--config", str(config), str(write_workflow(VULNERABLE)))
+    assert code == 2
+    assert not any(line.lstrip().startswith("::") for line in err.splitlines())

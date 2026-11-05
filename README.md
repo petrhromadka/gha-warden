@@ -126,7 +126,7 @@ min-severity = "medium"   # low, medium, high or critical
 exclude = ["examples/*", "*/legacy/*.yml"]   # paths to skip
 ```
 
-`exclude` patterns are shell-style globs matched against the path as shown in the report (relative to the current directory, with `/` separators); `*` also matches across directories. Precedence: command-line flags beat the config file, which beats the defaults. `--ignore` replaces the config's `ignore` list rather than adding to it, and `--min-severity` replaces `min-severity`. An unreadable or invalid config (bad TOML, unknown key, unknown rule ID, wrong type) exits with code 2.
+`exclude` patterns are shell-style globs matched against the path as shown in the report (relative to the repository root, else the current directory, with `/` separators); `*` also matches across directories. Precedence: command-line flags beat the config file, which beats the defaults. `--ignore` replaces the config's `ignore` list rather than adding to it, and `--min-severity` replaces `min-severity`. An unreadable or invalid config (bad TOML, unknown key, unknown rule ID, wrong type) exits with code 2.
 
 ### Upload SARIF to GitHub code scanning
 
@@ -148,18 +148,18 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@<commit-sha> # vX.Y.Z
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@<commit-sha> # vX.Y.Z
-      - run: uvx --from git+https://github.com/petrhromadka/gha-warden gha-warden --format sarif --output gha-warden.sarif || [ $? -eq 1 ]
-      - uses: github/codeql-action/upload-sarif@<commit-sha> # vX.Y.Z
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uvx --from git+https://github.com/petrhromadka/gha-warden@8b33a7dbf92361693112ce6a44f7552d9e5450d2 gha-warden --format sarif --output gha-warden.sarif || [ $? -eq 1 ]
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: gha-warden.sarif
           category: gha-warden
 ```
 
-The `|| [ $? -eq 1 ]` keeps the step green when findings exist (exit code 1) so the upload still runs, while usage and parse errors (exit code 2) still fail it. Replace each `<commit-sha>` with the full commit SHA of a release you have reviewed.
+The `|| [ $? -eq 1 ]` keeps the step green when findings exist (exit code 1) so the upload still runs, while usage and parse errors (exit code 2) still fail it. The SHAs above were current when v0.1.0 was released; let Dependabot keep them up to date.
 
 ## Use as a GitHub Action
 
@@ -183,10 +183,10 @@ jobs:
       contents: read
       security-events: write # needed to upload SARIF
     steps:
-      - uses: actions/checkout@<commit-sha> # vX.Y.Z
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: petrhromadka/gha-warden@<commit-sha> # vX.Y.Z
+      - uses: petrhromadka/gha-warden@8b33a7dbf92361693112ce6a44f7552d9e5450d2 # v0.1.0
         with:
           min-severity: medium
 ```
@@ -194,7 +194,7 @@ jobs:
 | Input | Default | Meaning |
 |-------|---------|---------|
 | `paths` | `.github/workflows` | Space-separated files or directories to scan |
-| `min-severity` | `low` | Lowest severity to report |
+| `min-severity` | empty | Lowest severity to report; empty uses `min-severity` from `.gha-warden.toml`, else `low` |
 | `format` | `sarif` | `text`, `json`, `sarif`, `github` or `markdown` |
 | `upload-sarif` | `true` | Upload results to code scanning (needs `security-events: write`) |
 | `annotations` | `true` | Emit one workflow annotation per finding |

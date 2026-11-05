@@ -45,7 +45,8 @@ class UnpinnedContainerImage(Rule):
             if not isinstance(services, dict):
                 continue
             for name, service in services.items():
-                if isinstance(service, dict):
+                # An empty image disables the service (GitHub docs), so there is nothing to pin.
+                if isinstance(service, dict) and service.get("image") != "":
                     path = (*job.path, "services", name, "image")
                     yield from self._check_image(workflow, path, service.get("image"))
 

@@ -279,6 +279,20 @@ def test_explicit_non_workflow_file_is_still_an_error(
     assert "expected a mapping at the top level" in err
 
 
+@pytest.mark.parametrize(
+    "content",
+    ["version: 2\nupdates: []\n", "", "# only a comment\n"],
+    ids=["mapping", "empty", "comment"],
+)
+def test_explicit_file_without_jobs_or_runs_exits_two(
+    write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str], content: str
+) -> None:
+    path = write_workflow(content, ".github/dependabot.yml")
+    code, _, err = run(capsys, str(path))
+    assert code == 2
+    assert "dependabot.yml: not a GitHub Actions workflow or action file" in err
+
+
 def test_report_paths_are_relative_to_the_repository_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

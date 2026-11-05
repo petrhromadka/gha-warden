@@ -17,6 +17,7 @@ from gha_warden.report import (
     format_markdown,
     format_sarif,
     format_text,
+    neutralize,
 )
 from gha_warden.rules import ALL_RULES
 from gha_warden.scan import collect_files, scan_workflow
@@ -103,7 +104,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         config = load_config(args.config)
     except ConfigError as exc:
-        print(f"gha-warden: error: {exc}", file=sys.stderr)
+        # Config errors quote keys and values from the repository's config file.
+        print(f"gha-warden: error: {neutralize(str(exc))}", file=sys.stderr)
         return EXIT_ERROR
 
     ignore = [part.strip().upper() for item in args.ignore for part in item.split(",") if part]
@@ -118,6 +120,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     for path in paths:
         if not path.exists():
             errors.append(f"{path.as_posix()}: no such file or directory")
+    # A directory scan skips YAML that is not a workflow; a file named explicitly must be one.
+    explicit = {p for p in paths if not p.is_dir()}
     files = collect_files(p for p in paths if p.exists())
 
     if args.min_severity is not None:
@@ -128,7 +132,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     scanned = 0
     for file in files:
         display = _display_path(file)
-        if config.is_excluded(_relative_to_cwd(file)):
+        if config.is_excluded(display):
             continue
         try:
             workflow = Workflow(display, file.read_text(encoding="utf-8"))
@@ -137,11 +141,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         except WorkflowError as exc:
             errors.append(f"{display}: {exc}")
         else:
+            if file in explicit and not {"jobs", "runs"} & workflow.data.keys():
+                errors.append(f"{display}: not a GitHub Actions workflow or action file")
+                continue
             scanned += 1
             findings += scan_workflow(workflow, ignore=ignore, min_severity=min_severity)
 
     for message in errors:
-        print(f"gha-warden: error: {message}", file=sys.stderr)
+        print(f"gha-warden: error: {neutralize(message)}", file=sys.stderr)
 
     if args.format == "json":
         report = format_json(findings, files_scanned=scanned)
