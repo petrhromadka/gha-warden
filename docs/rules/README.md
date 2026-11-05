@@ -19,6 +19,8 @@ example, and how to suppress a finding.
 | [GW012](GW012.md) | Artifact poisoning | high |
 | [GW013](GW013.md) | Container image not pinned by digest | medium |
 | [GW014](GW014.md) | Known-compromised action | critical |
+| [GW015](GW015.md) | Entire `secrets` context exposed | high |
+| [GW016](GW016.md) | Secret interpolated into `run:` script | low |
 
 ## Suppressing a finding
 

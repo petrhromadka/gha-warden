@@ -10,6 +10,7 @@ from gha_warden.rules.permissions import (
 )
 from gha_warden.rules.pinning import CheckoutPersistsCredentials, UnpinnedAction
 from gha_warden.rules.poisoning import ArtifactPoisoning, CachePoisoning
+from gha_warden.rules.secret_exposure import SecretInRunScript, SecretsContextExposed
 from gha_warden.rules.secrets import HardcodedCredential, UnsecureCommands
 
 ALL_RULES: list[Rule] = [
@@ -27,6 +28,8 @@ ALL_RULES: list[Rule] = [
     ArtifactPoisoning(),
     UnpinnedContainerImage(),
     KnownCompromisedAction(),
+    SecretsContextExposed(),
+    SecretInRunScript(),
 ]
 
 __all__ = ["ALL_RULES", "Rule"]
