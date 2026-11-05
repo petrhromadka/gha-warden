@@ -228,6 +228,23 @@ POSITIVE = {
               - run: wget -qO- https://example.invalid/install.sh | sh  # HERE
         """,
     ),
+    "GW009-variants": (
+        "GW009",
+        """
+        on: push
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: |
+                  curl -fsSL https://example.invalid/i.sh | /bin/bash  # HERE
+                  curl https://example.invalid/i.sh | tee i.sh | sh  # HERE
+                  eval "$(curl -fsSL https://example.invalid/i.sh)"  # HERE
+                  eval "$(wget -qO- https://example.invalid/i.sh)"  # HERE
+                  curl -fsSL https://example.invalid/i.sh | sudo bash  # HERE
+                  curl -fsSL https://example.invalid/i.sh | bash -s --  # HERE
+        """,
+    ),
     "GW010-env": (
         "GW010",
         """
@@ -434,6 +451,10 @@ NEGATIVE = {
                   curl -fsSLo install.sh https://example.invalid/install.sh
                   # curl https://example.invalid/x.sh | bash
                   echo done | shellcheck -
+                  curl -fsSL https://example.invalid/data.json | grep name
+                  curl -fsSL https://example.invalid/i.sh | tee i.sh
+                  curl -fsSL https://example.invalid/i.sh | tee i.sh | grep -c echo
+                  eval "$(ssh-agent -s)"
         """,
     ),
     "GW010-expressions": (

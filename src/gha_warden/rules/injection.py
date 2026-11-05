@@ -207,10 +207,14 @@ class PwnRequest(Rule):
 
 _SHELL = r"(?:ba|z|da|k)?sh"
 _REMOTE_FETCH = r"(?:curl|wget)\b"
+# A pipe stage that only passes the data along, so a shell after it still runs the download.
+_PASS_THROUGH = r"\|\s*tee\b(?:[^\n|]|\\\n)*"
 _PIPE_TO_SHELL = re.compile(
-    rf"\b{_REMOTE_FETCH}(?:[^\n|]|\\\n)*\|\s*(?:sudo\s+(?:-\S+\s+)*)?{_SHELL}\b"
+    rf"\b{_REMOTE_FETCH}(?:[^\n|]|\\\n)*(?:{_PASS_THROUGH})*"
+    rf"\|\s*(?:sudo\s+(?:-\S+\s+)*)?(?:/[\w./-]*/)?{_SHELL}(?![\w.-])"
     rf"|\b{_SHELL}\s+<\(\s*{_REMOTE_FETCH}"
     rf"|\b{_SHELL}\s+-c\s+[\"']?\$\(\s*{_REMOTE_FETCH}"
+    rf"|\beval\s+[\"']?(?:\$\(|`)\s*{_REMOTE_FETCH}"
 )
 
 
