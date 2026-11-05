@@ -8,6 +8,8 @@ Static security auditor for GitHub Actions workflows: finds injection and supply
 
 gha-warden reads your workflow files and reports seventeen classes of problems (script injection, pwn requests, unpinned actions, over-broad permissions, and more) with a file, line, severity and a concrete fix. It is pure static analysis: no network access, no tokens, nothing leaves your machine. Output is human-readable text, JSON, SARIF for GitHub code scanning, workflow annotations, or a Markdown job summary.
 
+![gha-warden scanning example workflows](docs/demo.svg)
+
 ## Why
 
 CI workflows run with write tokens and secrets, yet they are often reviewed less carefully than application code. Real incidents come from a small set of recurring patterns. The March 2025 compromise of the widely used `tj-actions/changed-files` action showed what happens when workflows reference third-party actions by a mutable tag instead of a commit SHA. "Pwn requests" abuse `pull_request_target` workflows that check out and run code from a fork. Script injection lets an issue title, branch name or comment body become shell commands when it is expanded with `${{ }}` inside `run:`. gha-warden checks for these patterns, and a few related ones, on every push.
@@ -45,43 +47,39 @@ gha-warden examples/safe         # clean, exit code 0
 
 ```
 gha-warden [PATHS...] [--format text|json|sarif|github|markdown]
-           [--min-severity low|medium|high|critical] [--ignore RULE_ID ...]
-           [--config PATH] [--output FILE] [--no-color]
+           [--min-severity low|medium|high|critical] [--ignore RULE_ID[,RULE_ID...]]
+           [--config PATH] [--output FILE] [--no-color] [--version]
 ```
 
 | Option | Meaning |
 |--------|---------|
-| `PATHS` | Files or directories. Directories are scanned recursively for `*.yml` and `*.yaml`. Default: `.github/workflows`. |
+| `PATHS` | Files or directories. Directories are scanned recursively for `*.yml` and `*.yaml` (`.git`, `.venv` and `node_modules` are skipped). Default: `.github/workflows`. |
 | `--format` | `text` (default), `json`, `sarif`, `github`, or `markdown`. |
 | `--min-severity` | Hide findings below this severity. |
-| `--ignore RULE_ID` | Skip a rule entirely. May be repeated. |
+| `--ignore RULE_ID` | Skip a rule entirely. Repeat the option or separate IDs with commas (`--ignore GW005,GW003`); IDs are case-insensitive and an unknown ID is a usage error. |
 | `--config PATH` | Read settings from this TOML file instead of `.gha-warden.toml`. |
 | `--output FILE` | Write the report to a file instead of stdout. |
-| `--no-color` | Disable colors. The `NO_COLOR` environment variable is respected too. |
+| `--no-color` | Disable colors. Colors are only used when stdout is a terminal, and never with `--output`; the `NO_COLOR` environment variable is respected too. |
+| `--version` | Print the version and exit. |
 
 ## Example output
 
 ```text
+$ gha-warden --no-color examples/vulnerable/script-injection.yml
 examples/vulnerable/script-injection.yml
-  17:9   critical  GW001  Untrusted `github.event.issue.title` is expanded inside `run:`
-                          fix: pass it through `env:` and reference it as "$ISSUE_TITLE"
-  23:13  critical  GW001  Untrusted `github.event.comment.body` is expanded inside `script:`
-                          fix: pass it through `env:` and read it from `process.env`
-  20:9   medium    GW003  `actions/github-script@v7` is not pinned to a full commit SHA
-                          fix: pin to the 40-character commit SHA and keep the tag in a comment
-  29:9   medium    GW009  Remote script is piped to a shell
-                          fix: download, verify a checksum or signature, then execute
+  13:3    medium   GW004  Job 'triage' has no 'permissions:' and the workflow declares none
+      fix: Declare 'permissions: contents: read' at the top level and grant extra scopes only to the jobs that need them.
+  17:14   critical GW001  Untrusted input 'github.event.issue.title' is interpolated into a run script
+      fix: Pass the value through an environment variable (env: NAME: ${{ ... }}) and read it as $NAME in the script, or as process.env.NAME in github-script.
+  20:15   medium   GW003  'actions/github-script@v7' is not pinned to a full commit SHA
+      fix: Pin the action to the full 40-character commit SHA and keep the version as a comment, e.g. uses: owner/repo@<sha> # v4.
+  23:13   critical GW001  Untrusted input 'github.event.comment.body' is interpolated into a github-script script
+      fix: Pass the value through an environment variable (env: NAME: ${{ ... }}) and read it as $NAME in the script, or as process.env.NAME in github-script.
+  29:14   medium   GW009  Remote script is piped into a shell
+      fix: Download the script to a file, verify its checksum or signature, then run it; or use a pinned action or package instead.
 
-examples/vulnerable/pwn-request.yml
-  21:11  critical  GW002  `pull_request_target` workflow checks out untrusted pull request code
-                          fix: use `pull_request`, or split into an unprivileged build and a privileged `workflow_run`
-  25:9   high      GW003  `peter-evans/create-or-update-comment@v4` is not pinned to a full commit SHA
-                          fix: pin to the 40-character commit SHA and keep the tag in a comment
-
-6 findings in 2 files (3 critical, 1 high, 2 medium)
+5 findings (2 critical, 3 medium) in 1 file
 ```
-
-The output above is abridged to two of the demo files.
 
 ## Rules
 
@@ -220,7 +218,7 @@ Add a YAML comment on the line of the finding:
 |------|---------|
 | 0 | No findings at or above `--min-severity` |
 | 1 | One or more findings |
-| 2 | Usage or parse error |
+| 2 | Usage error, or a path that does not exist or a file that cannot be read or parsed (the remaining files are still scanned and reported) |
 
 ## Development
 
