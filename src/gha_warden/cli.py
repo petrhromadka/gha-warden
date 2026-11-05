@@ -119,6 +119,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     for path in paths:
         if not path.exists():
             errors.append(f"{path.as_posix()}: no such file or directory")
+    # A directory scan skips YAML that is not a workflow; a file named explicitly must be one.
+    explicit = {p for p in paths if not p.is_dir()}
     files = collect_files(p for p in paths if p.exists())
 
     if args.min_severity is not None:
@@ -138,6 +140,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         except WorkflowError as exc:
             errors.append(f"{display}: {exc}")
         else:
+            if file in explicit and not {"jobs", "runs"} & workflow.data.keys():
+                errors.append(f"{display}: not a GitHub Actions workflow or action file")
+                continue
             scanned += 1
             findings += scan_workflow(workflow, ignore=ignore, min_severity=min_severity)
 
