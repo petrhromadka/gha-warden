@@ -181,6 +181,9 @@ UNPARSEABLE = {
     "lone-surrogate": 'on: push\nname: "\ud800"\n',
     "integer-over-digit-limit": "on: push\nname: 1" + "0" * 5000 + "\n",
     "nesting-too-deep": "on: push\njobs: " + "[" * 1000 + "]" * 1000 + "\n",
+    # PyYAML raises KeyError and AttributeError for these explicit tags.
+    "bool-tag-on-non-boolean": "on: push\nname: !!bool steps\n",
+    "timestamp-tag-on-non-date": "on: push\nname: !!timestamp x\n",
 }
 
 
@@ -199,6 +202,15 @@ def test_control_character_exits_two_without_traceback(
     err = capsys.readouterr().err
     assert "Traceback" not in err
     assert "binary.yml: invalid YAML" in err
+
+
+def test_bad_tag_in_walked_directory_exits_two_without_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A directory walk parses YAML outside .github/workflows to decide if it is a workflow."""
+    (tmp_path / "other.yml").write_text("jobs: !!bool steps\n", encoding="utf-8")
+    assert main([str(tmp_path)]) == 2
+    assert "other.yml: invalid YAML" in capsys.readouterr().err
 
 
 # Valid but unusual YAML that scans cleanly.
