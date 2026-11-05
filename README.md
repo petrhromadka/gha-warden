@@ -194,7 +194,7 @@ jobs:
 | Input | Default | Meaning |
 |-------|---------|---------|
 | `paths` | `.github/workflows` | Space-separated files or directories to scan |
-| `min-severity` | `low` | Lowest severity to report |
+| `min-severity` | empty | Lowest severity to report; empty uses `min-severity` from `.gha-warden.toml`, else `low` |
 | `format` | `sarif` | `text`, `json`, `sarif`, `github` or `markdown` |
 | `upload-sarif` | `true` | Upload results to code scanning (needs `security-events: write`) |
 | `annotations` | `true` | Emit one workflow annotation per finding |
