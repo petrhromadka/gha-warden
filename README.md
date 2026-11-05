@@ -6,7 +6,7 @@ Static security auditor for GitHub Actions workflows: finds injection and supply
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 
-gha-warden reads your workflow files and reports ten classes of problems (script injection, pwn requests, unpinned actions, over-broad permissions, and more) with a file, line, severity and a concrete fix. It is pure static analysis: no network access, no tokens, nothing leaves your machine. Output is human-readable text, JSON, or SARIF for GitHub code scanning.
+gha-warden reads your workflow files and reports ten classes of problems (script injection, pwn requests, unpinned actions, over-broad permissions, and more) with a file, line, severity and a concrete fix. It is pure static analysis: no network access, no tokens, nothing leaves your machine. Output is human-readable text, JSON, SARIF for GitHub code scanning, workflow annotations, or a Markdown job summary.
 
 ## Why
 
@@ -44,16 +44,18 @@ gha-warden examples/safe         # clean, exit code 0
 ### Usage
 
 ```
-gha-warden [PATHS...] [--format text|json|sarif] [--min-severity low|medium|high|critical]
-           [--ignore RULE_ID ...] [--output FILE] [--no-color]
+gha-warden [PATHS...] [--format text|json|sarif|github|markdown]
+           [--min-severity low|medium|high|critical] [--ignore RULE_ID ...]
+           [--config PATH] [--output FILE] [--no-color]
 ```
 
 | Option | Meaning |
 |--------|---------|
 | `PATHS` | Files or directories. Directories are scanned recursively for `*.yml` and `*.yaml`. Default: `.github/workflows`. |
-| `--format` | `text` (default), `json`, or `sarif`. |
+| `--format` | `text` (default), `json`, `sarif`, `github`, or `markdown`. |
 | `--min-severity` | Hide findings below this severity. |
 | `--ignore RULE_ID` | Skip a rule entirely. May be repeated. |
+| `--config PATH` | Read settings from this TOML file instead of `.gha-warden.toml`. |
 | `--output FILE` | Write the report to a file instead of stdout. |
 | `--no-color` | Disable colors. The `NO_COLOR` environment variable is respected too. |
 
@@ -101,6 +103,25 @@ The output above is abridged to two of the demo files.
 - `text`: grouped by file, colored severity, summary line.
 - `json`: list of findings plus summary counts, for scripting.
 - `sarif`: SARIF 2.1.0 with the rule metadata populated, so GitHub code scanning shows titles, help text and a `security-severity` (low 3.0, medium 5.0, high 7.5, critical 9.5).
+- `github`: one [workflow command](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands) per finding, which GitHub shows as an annotation on the run and the pull request diff. Critical and high are errors, medium is a warning, low is a notice.
+- `markdown`: a severity summary table and a findings table (severity, rule, `file:line`, message), for `$GITHUB_STEP_SUMMARY` or a pull request comment.
+
+```sh
+gha-warden --format github                                  # annotations on stdout
+gha-warden --format markdown >> "$GITHUB_STEP_SUMMARY"      # job summary
+```
+
+## Config file
+
+gha-warden reads `.gha-warden.toml` from the current directory if it exists, or the file given with `--config PATH`:
+
+```toml
+ignore = ["GW005"]        # rules to skip
+min-severity = "medium"   # low, medium, high or critical
+exclude = ["examples/*", "*/legacy/*.yml"]   # paths to skip
+```
+
+`exclude` patterns are shell-style globs matched against the path as shown in the report (relative to the current directory, with `/` separators); `*` also matches across directories. Precedence: command-line flags beat the config file, which beats the defaults. `--ignore` replaces the config's `ignore` list rather than adding to it, and `--min-severity` replaces `min-severity`. An unreadable or invalid config (bad TOML, unknown key, unknown rule ID, wrong type) exits with code 2.
 
 ### Upload SARIF to GitHub code scanning
 
@@ -169,11 +190,12 @@ jobs:
 |-------|---------|---------|
 | `paths` | `.github/workflows` | Space-separated files or directories to scan |
 | `min-severity` | `low` | Lowest severity to report |
-| `format` | `sarif` | `text`, `json` or `sarif` |
+| `format` | `sarif` | `text`, `json`, `sarif`, `github` or `markdown` |
 | `upload-sarif` | `true` | Upload results to code scanning (needs `security-events: write`) |
+| `annotations` | `true` | Emit one workflow annotation per finding |
 | `fail-on-findings` | `true` | Fail the job when findings at or above `min-severity` exist |
 
-Inputs are passed to the scanner through environment variables, never interpolated into the shell script.
+The action also appends the Markdown report to the job summary. It runs in the workspace, so a `.gha-warden.toml` at the repository root is picked up. Inputs are passed to the scanner through environment variables, never interpolated into the shell script.
 
 ## Suppressing a finding
 

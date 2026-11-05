@@ -13,10 +13,13 @@ inputs:
     description: Lowest severity to report (low, medium, high, critical).
     default: low
   format:
-    description: Output format (text, json, sarif).
+    description: Output format (text, json, sarif, github, markdown).
     default: sarif
   upload-sarif:
     description: Upload SARIF results to GitHub code scanning (the calling job needs security-events write).
+    default: "true"
+  annotations:
+    description: Emit one workflow annotation per finding (the github format).
     default: "true"
   fail-on-findings:
     description: Fail the step when findings at or above min-severity exist.
@@ -42,6 +45,7 @@ runs:
         GW_MIN_SEVERITY: ${{ inputs.min-severity }}
         GW_FORMAT: ${{ inputs.format }}
         GW_UPLOAD_SARIF: ${{ inputs.upload-sarif }}
+        GW_ANNOTATIONS: ${{ inputs.annotations }}
       run: |
         set -uo pipefail
         read -r -a targets <<< "$GW_PATHS"
@@ -66,6 +70,17 @@ runs:
           fi
         else
           cp "$report" "$sarif"
+        fi
+
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          summary="${RUNNER_TEMP}/gha-warden-summary.md"
+          run_scan markdown "$summary" || [ $? -eq 1 ] || exit 2
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ "$GW_ANNOTATIONS" = "true" ] && [ "$GW_FORMAT" != "github" ]; then
+          annotations="${RUNNER_TEMP}/gha-warden-annotations.txt"
+          run_scan github "$annotations" || [ $? -eq 1 ] || exit 2
+          cat "$annotations"
         fi
 
         {
