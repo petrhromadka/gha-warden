@@ -1,6 +1,6 @@
 # Real-world scan
 
-Date: 2026-11-05. gha-warden at commit `df57cc0` (branch `realworld`).
+Date: 2026-11-05. First scan with gha-warden v0.1.0; re-scans after the GW010 rework and the GW011-GW017 triage (see the sections below).
 
 This page measures gha-warden against workflows of popular public
 repositories. It reports aggregate numbers only. Repositories and files are
