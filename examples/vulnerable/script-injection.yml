@@ -1,0 +1,29 @@
+# Demonstrates: GW001 (script injection), GW009 (remote script piped to a shell).
+# Also reported because the workflow is otherwise unhardened: GW003, GW004.
+# DO NOT copy this workflow. It is intentionally vulnerable.
+name: Issue triage
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Greet the author
+        run: echo "Thanks for opening '${{ github.event.issue.title }}'"
+
+      - name: React to commands in comments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = "${{ github.event.comment.body }}";
+            if (body.startsWith("/label")) {
+              console.log("label requested");
+            }
+
+      - name: Install triage tooling
+        run: curl -sSL https://example.com/install.sh | bash

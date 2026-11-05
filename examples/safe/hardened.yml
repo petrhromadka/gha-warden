@@ -1,0 +1,33 @@
+# Hardened counterpart of the vulnerable examples: gha-warden reports nothing here.
+name: Hardened PR checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hardened-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      # Untrusted input goes through an environment variable, never straight into the script.
+      - name: Print pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "Checking pull request - $PR_TITLE"
+
+      - run: uv run --no-project python -c "print('ok')"
