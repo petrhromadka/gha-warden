@@ -15,6 +15,8 @@ example, and how to suppress a finding.
 | [GW008](GW008.md) | `ACTIONS_ALLOW_UNSECURE_COMMANDS` enabled | high |
 | [GW009](GW009.md) | Remote script piped to a shell | medium |
 | [GW010](GW010.md) | Hardcoded credential in `env:` or `with:` | high |
+| [GW013](GW013.md) | Container image not pinned by digest | medium |
+| [GW014](GW014.md) | Known-compromised action | critical |
 
 ## Suppressing a finding
 

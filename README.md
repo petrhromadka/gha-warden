@@ -95,6 +95,8 @@ The output above is abridged to two of the demo files.
 | GW008 | high | `ACTIONS_ALLOW_UNSECURE_COMMANDS` set in `env:` at workflow, job or step level | Re-enables the deprecated `set-env` and `add-path` workflow commands, which untrusted log output can abuse | Remove it and use `$GITHUB_ENV` and `$GITHUB_PATH` |
 | GW009 | medium | Remote script piped to a shell in `run:` (`curl ... \| bash`, `wget -O- ... \| sh`, and similar) | Executes whatever the server returns, unverified | Download, verify a checksum or signature, then run |
 | GW010 | high | Credential-looking literal in `env:` or `with:` (keys named like `token`, `password`, `secret`, `api_key` with a non-expression value) | Secrets committed to the repository are exposed to everyone with read access and stay in git history | Store it as a repository secret and reference `${{ secrets.NAME }}` |
+| GW013 | medium | Container image not pinned by digest: `container:` (string or `image:`) and `services.*.image` without `@sha256:<64 hex>`. Image names that are `${{ }}` expressions are skipped | Tags in a registry can be re-pushed; the image runs next to your steps and secrets | Pin the image to its digest and keep the tag in a trailing comment |
+| GW014 | critical | `uses:` reference matching a publicly documented action compromise (offline list: `tj-actions/changed-files`, `reviewdog/action-setup`, `aquasecurity/trivy-action`, `aquasecurity/setup-trivy`, `xygeni/xygeni-action`) | The version ran attacker code with your secrets | Move to a fixed release pinned by SHA and rotate exposed secrets |
 
 ## Output formats
 

@@ -1,0 +1,24 @@
+# Demonstrates: GW013 (container and service images not pinned by digest),
+# GW014 (known-compromised action version).
+# Also reported: GW003 (the action is referenced by tag).
+# DO NOT copy this workflow. It is intentionally vulnerable.
+name: Test
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: node:22
+    services:
+      db:
+        image: postgres:17
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: tj-actions/changed-files@v44
