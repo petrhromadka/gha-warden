@@ -109,6 +109,21 @@ def test_sarif_format(write_workflow: WriteWorkflow, capsys: pytest.CaptureFixtu
         assert location["region"]["startLine"] >= 1
 
 
+def test_sarif_keeps_per_finding_severity_in_result_level(
+    write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, out, _ = run(capsys, "--format", "sarif", str(write_workflow(VULNERABLE)))
+    results = json.loads(out)["runs"][0]["results"]
+    # GitHub reads `security-severity` from the rule only, so results must not carry one.
+    assert all("security-severity" not in result.get("properties", {}) for result in results)
+    gw003 = sorted(
+        (r["locations"][0]["physicalLocation"]["region"]["startLine"], r["level"])
+        for r in results
+        if r["ruleId"] == "GW003"
+    )
+    assert gw003 == [(7, "warning"), (8, "error")]
+
+
 def test_sarif_without_findings_is_valid(
     write_workflow: WriteWorkflow, capsys: pytest.CaptureFixture[str]
 ) -> None:
