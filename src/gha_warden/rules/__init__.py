@@ -1,5 +1,6 @@
 """Rule registry."""
 
+from gha_warden.rules.actor import SpoofableActorCheck
 from gha_warden.rules.base import Rule
 from gha_warden.rules.images import KnownCompromisedAction, UnpinnedContainerImage
 from gha_warden.rules.injection import PwnRequest, RemoteScriptPipe, ScriptInjection
@@ -30,6 +31,7 @@ ALL_RULES: list[Rule] = [
     KnownCompromisedAction(),
     SecretsContextExposed(),
     SecretInRunScript(),
+    SpoofableActorCheck(),
 ]
 
 __all__ = ["ALL_RULES", "Rule"]

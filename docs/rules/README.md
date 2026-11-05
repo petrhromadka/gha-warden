@@ -21,6 +21,7 @@ example, and how to suppress a finding.
 | [GW014](GW014.md) | Known-compromised action | critical |
 | [GW015](GW015.md) | Entire `secrets` context exposed | high |
 | [GW016](GW016.md) | Secret interpolated into `run:` script | low |
+| [GW017](GW017.md) | Spoofable actor check in a privileged workflow | high |
 
 ## Suppressing a finding
 
