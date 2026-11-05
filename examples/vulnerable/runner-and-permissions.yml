@@ -1,0 +1,17 @@
+# Demonstrates: GW004 (write-all permissions), GW007 (self-hosted runner on a PR trigger).
+# DO NOT copy this workflow. It is intentionally vulnerable.
+name: Fork CI
+
+on:
+  pull_request:
+
+permissions: write-all
+
+jobs:
+  test:
+    runs-on: [self-hosted, linux]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make test

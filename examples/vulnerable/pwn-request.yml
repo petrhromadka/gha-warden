@@ -1,0 +1,28 @@
+# Demonstrates: GW002 (pwn request), GW005 (checkout without persist-credentials: false).
+# Also reported: GW003 (tags instead of commit SHAs).
+# DO NOT copy this workflow. It is intentionally vulnerable.
+name: PR preview
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      # Runs with a write token and secrets, but builds code from the fork.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - run: npm ci && npm run build
+
+      - uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: Preview build finished.
