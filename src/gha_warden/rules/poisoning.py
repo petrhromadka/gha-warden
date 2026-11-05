@@ -65,7 +65,7 @@ class CachePoisoning(Rule):
     )
 
     def check(self, workflow: Workflow) -> Iterable[Finding]:
-        triggers = workflow.triggers & _PRIVILEGED_CACHE_TRIGGERS
+        triggers = workflow.privileged_triggers(_PRIVILEGED_CACHE_TRIGGERS)
         if not triggers:
             return
         trigger = sorted(triggers)[0]
@@ -282,7 +282,7 @@ class ArtifactPoisoning(Rule):
     )
 
     def check(self, workflow: Workflow) -> Iterable[Finding]:
-        triggers = workflow.triggers & _ARTIFACT_TRIGGERS
+        triggers = workflow.privileged_triggers(_ARTIFACT_TRIGGERS)
         if not triggers:
             return
         trigger = sorted(triggers)[0]

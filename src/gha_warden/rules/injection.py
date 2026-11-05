@@ -164,7 +164,7 @@ class PwnRequest(Rule):
     )
 
     def check(self, workflow: Workflow) -> Iterable[Finding]:
-        triggers = workflow.triggers & _PRIVILEGED_TRIGGERS
+        triggers = workflow.privileged_triggers(_PRIVILEGED_TRIGGERS)
         if not triggers:
             return
         trigger = sorted(triggers)[0]

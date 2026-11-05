@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import sys
 from collections.abc import Sequence
@@ -21,7 +22,7 @@ from gha_warden.report import (
 )
 from gha_warden.rules import ALL_RULES
 from gha_warden.scan import collect_files, scan_workflow
-from gha_warden.workflow import Workflow, WorkflowError
+from gha_warden.workflow import Workflow, WorkflowError, link_workflows
 
 DEFAULT_PATH = ".github/workflows"
 EXIT_OK, EXIT_FINDINGS, EXIT_ERROR = 0, 1, 2
@@ -129,10 +130,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         min_severity = config.min_severity or Severity.LOW
     findings: list[Finding] = []
-    scanned = 0
+    workflows: list[Workflow] = []
+    # Excluded files are parsed too: their findings are hidden, but they still run on GitHub
+    # and so still count as upstream workflows for `workflow_run` analysis.
+    excluded: list[Workflow] = []
     for file in files:
         display = _display_path(file)
         if config.is_excluded(display):
+            # An unreadable excluded file is skipped silently, as before.
+            with contextlib.suppress(OSError, UnicodeDecodeError, WorkflowError):
+                excluded.append(Workflow(display, file.read_text(encoding="utf-8")))
             continue
         try:
             workflow = Workflow(display, file.read_text(encoding="utf-8"))
@@ -144,8 +151,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             if file in explicit and not {"jobs", "runs"} & workflow.data.keys():
                 errors.append(f"{display}: not a GitHub Actions workflow or action file")
                 continue
-            scanned += 1
-            findings += scan_workflow(workflow, ignore=ignore, min_severity=min_severity)
+            workflows.append(workflow)
+
+    link_workflows([*workflows, *excluded])
+    scanned = len(workflows)
+    for workflow in workflows:
+        findings += scan_workflow(workflow, ignore=ignore, min_severity=min_severity)
 
     for message in errors:
         print(f"gha-warden: error: {neutralize(message)}", file=sys.stderr)
