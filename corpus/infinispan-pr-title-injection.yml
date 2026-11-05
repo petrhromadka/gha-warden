@@ -1,0 +1,23 @@
+# Case: Infinispan pull_request_target PR-title expression injection (GHSL-2024-048)
+# Date: 2024-08-14
+# Source: https://securitylab.github.com/advisories/GHSL-2024-048_infinispan/
+# Pattern: pull_request_target workflow with the default (write) token interpolates the PR title
+# into a run script.
+# Re-written minimal reproduction; names are generic. No permissions block: the advisory notes the
+# token was read-write because of the org/repo default.
+name: Pull Request Open
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+
+jobs:
+  update-tracker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract tracker key
+        run: echo ISSUE_KEY=$(echo "${{ github.event.pull_request.title }}" | grep -oP 'PROJ-(?P<id>[0-9]+)') >> $GITHUB_ENV

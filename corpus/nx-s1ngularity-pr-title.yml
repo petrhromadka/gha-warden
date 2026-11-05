@@ -1,0 +1,21 @@
+# Case: Nx "s1ngularity" - PR title validation workflow injection leading to npm token theft (CVE-2025-10894)
+# Date: 2025-08-27
+# Source: https://github.com/advisories/GHSA-cxm3-wv7p-598c
+#         https://securitylab.github.com/advisories/GHSL-2025-111_nrwl_nx/
+# Pattern: pull_request_target workflow (read/write GITHUB_TOKEN) echoes the PR title through ${{ }}
+# in a run step, so a title like $(command) executes in the privileged context. No permissions
+# block: the advisory says the token had read/write capabilities.
+# Re-written minimal reproduction.
+name: PR title validation
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        run: |
+          echo "Validating PR title: ${{ github.event.pull_request.title }}"

@@ -1,0 +1,26 @@
+# Case: ArtiPACKED - GITHUB_TOKEN persisted by actions/checkout leaks via uploaded artifacts
+# Date: 2024-08-13
+# Source: https://unit42.paloaltonetworks.com/github-repo-artifacts-leak-tokens/
+# Pattern: actions/checkout persists the token in .git/config (default persist-credentials: true) and
+# a later step uploads the whole checkout directory as an artifact, publishing the token.
+# Re-written minimal reproduction. The permissions block is added by the reproduction.
+name: Build
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: make build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: .

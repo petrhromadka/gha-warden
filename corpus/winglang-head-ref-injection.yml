@@ -1,0 +1,24 @@
+# Case: winglang/wing self-mutation workflow, PR head branch name injection (GHSL-2023-110)
+# Date: 2023-06-16
+# Source: https://securitylab.github.com/advisories/GHSL-2023-110_Wing_Language/
+# Pattern: pull_request_target workflow with contents: write pushes to a branch named by the fork's
+# head ref, interpolated unquoted into a run script (e.g. branch name foo;echo${IFS}"hello";#).
+# Re-written minimal reproduction; names are generic.
+name: Self mutation
+
+on:
+  pull_request_target:
+
+permissions:
+  contents: write
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push changes
+        run: |-
+          git config user.name "example-bot"
+          git config user.email "bot@example.invalid"
+          git commit -s -m "chore: self mutation"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
