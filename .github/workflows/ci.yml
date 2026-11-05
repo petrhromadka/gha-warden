@@ -83,3 +83,26 @@ jobs:
         env:
           EXIT_CODE: ${{ steps.vulnerable.outputs.exit-code }}
         run: test "$EXIT_CODE" = "1"
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build -t gha-warden:ci .
+      - name: Own workflows must be clean
+        run: |
+          code=0
+          docker run --rm -v "$PWD:/src" gha-warden:ci .github/workflows action.yml || code=$?
+          echo "exit code: $code"
+          test "$code" -eq 0
+      - name: Vulnerable examples must produce findings
+        run: |
+          code=0
+          docker run --rm -v "$PWD:/src" gha-warden:ci examples/vulnerable || code=$?
+          echo "exit code: $code"
+          test "$code" -eq 1
