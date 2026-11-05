@@ -110,6 +110,20 @@ POSITIVE = {
                 run: echo "number=$(cat pr-number.txt)" >> $GITHUB_OUTPUT
         """,
     ),
+    "GW012-grep-not-digits-only": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4  # HERE
+                with:
+                  run-id: 1234
+              - run: echo "NUMBER=$(grep -E '^[0-9]+' pr_number.txt)" >> "$GITHUB_OUTPUT"
+        """,
+    ),
     "GW012-gh-run-download-then-source": (
         "GW012",
         """
@@ -278,6 +292,20 @@ NEGATIVE = {
                   echo "$MESSAGE" | grep -c error >> "$GITHUB_OUTPUT"
                   ./scripts/notify.sh
                   make -C tools lint
+        """,
+    ),
+    "GW012-grep-digits-only-line": (
+        "GW012",
+        """
+        on: workflow_run
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - uses: actions/download-artifact@v4
+                with:
+                  run-id: 1234
+              - run: echo "NUMBER=$(grep -E '^[0-9]+$' pr_number.txt || true)" >> "$GITHUB_OUTPUT"
         """,
     ),
     "GW012-validated-and-before-download": (
