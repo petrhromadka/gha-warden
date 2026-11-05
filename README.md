@@ -152,14 +152,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-      - run: uvx --from git+https://github.com/petrhromadka/gha-warden@8b33a7dbf92361693112ce6a44f7552d9e5450d2 gha-warden --format sarif --output gha-warden.sarif || [ $? -eq 1 ]
+      - run: uvx --from git+https://github.com/petrhromadka/gha-warden@cd82ddb5053b14f8534fd5ed7bac9d97ba1cde76 gha-warden --format sarif --output gha-warden.sarif || [ $? -eq 1 ]
       - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: gha-warden.sarif
           category: gha-warden
 ```
 
-The `|| [ $? -eq 1 ]` keeps the step green when findings exist (exit code 1) so the upload still runs, while usage and parse errors (exit code 2) still fail it. The SHAs above were current when v0.1.0 was released; let Dependabot keep them up to date.
+The `|| [ $? -eq 1 ]` keeps the step green when findings exist (exit code 1) so the upload still runs, while usage and parse errors (exit code 2) still fail it. The SHAs above were current when v0.1.1 was released; let Dependabot keep them up to date.
 
 ## Use as a GitHub Action
 
@@ -186,7 +186,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: petrhromadka/gha-warden@8b33a7dbf92361693112ce6a44f7552d9e5450d2 # v0.1.0
+      - uses: petrhromadka/gha-warden@cd82ddb5053b14f8534fd5ed7bac9d97ba1cde76 # v0.1.1
         with:
           min-severity: medium
 ```
