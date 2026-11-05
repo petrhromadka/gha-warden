@@ -33,7 +33,7 @@ Conventions:
 | [`nx-s1ngularity-pr-title.yml`](nx-s1ngularity-pr-title.yml) | 2025-08-27 | [source](https://github.com/advisories/GHSA-cxm3-wv7p-598c) | GW001, GW004 |
 | [`pwn-request-checkout-head.yml`](pwn-request-checkout-head.yml) | 2021-08-03 | [source](https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/) | GW002, GW003, GW005 |
 | [`pytorch-self-hosted-runner-pr.yml`](pytorch-self-hosted-runner-pr.yml) | 2024-01-11 | [source](https://johnstawinski.com/2024/01/11/playing-with-fire-how-we-executed-a-critical-supply-chain-attack-on-pytorch/) | GW007, GW009 |
-| [`tj-actions-mutable-tag.yml`](tj-actions-mutable-tag.yml) | 2025-03-15 | [source](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3) | GW003 |
+| [`tj-actions-mutable-tag.yml`](tj-actions-mutable-tag.yml) | 2025-03-15 | [source](https://github.com/advisories/GHSA-mrrh-fwg8-r2c3) | GW003, GW014 |
 | [`artipacked-upload-checkout-dir.yml`](artipacked-upload-checkout-dir.yml) | 2024-08-13 | [source](https://unit42.paloaltonetworks.com/github-repo-artifacts-leak-tokens/) | GW003, GW005 |
 | [`set-env-unsecure-commands.yml`](set-env-unsecure-commands.yml) | 2020-10-01 | [source](https://github.com/actions/toolkit/security/advisories/GHSA-mfwh-5m23-j46w) | GW008 |
 | [`codecov-bash-uploader.yml`](codecov-bash-uploader.yml) | 2021-04-15 | [source](https://about.codecov.io/security-update/) | GW009 |

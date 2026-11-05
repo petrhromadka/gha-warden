@@ -50,15 +50,23 @@ def _yields_boolean(expression: str) -> bool:
     )
 
 
-def _strings(node: object, path: NodePath) -> Iterator[tuple[NodePath, str]]:
+def _strings(
+    node: object, path: NodePath, ancestors: frozenset[int] = frozenset()
+) -> Iterator[tuple[NodePath, str]]:
     if isinstance(node, str):
         yield path, node
-    elif isinstance(node, dict):
+        return
+    # YAML aliases can make a container contain itself; skip a node already on this path.
+    if id(node) in ancestors:
+        return
+    if isinstance(node, dict):
+        inner = ancestors | {id(node)}
         for key, value in node.items():
-            yield from _strings(value, (*path, key))
+            yield from _strings(value, (*path, key), inner)
     elif isinstance(node, list):
+        inner = ancestors | {id(node)}
         for index, value in enumerate(node):
-            yield from _strings(value, (*path, index))
+            yield from _strings(value, (*path, index), inner)
 
 
 class SecretsContextExposed(Rule):
