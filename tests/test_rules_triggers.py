@@ -106,6 +106,39 @@ POSITIVE = {
               - run: git checkout ${{ github.event.pull_request.head.sha }}  # HERE
         """,
     ),
+    "GW002-run-git-C-fetch-pull": (
+        "GW002",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: git -C src fetch origin refs/pull/7/merge  # HERE
+        """,
+    ),
+    "GW002-run-git-c-option-fetch-pull": (
+        "GW002",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: git -c protocol.version=2 fetch origin pull/7/head  # HERE
+        """,
+    ),
+    "GW002-run-git-dir-option-checkout": (
+        "GW002",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: git --git-dir .git --work-tree "my dir" checkout ${{ github.head_ref }}  # HERE
+        """,
+    ),
     "GW002-run-fetch-head-repo-continued": (
         "GW002",
         """
@@ -248,6 +281,31 @@ NEGATIVE = {
             runs-on: ubuntu-latest
             steps:
               - run: git pull origin ${{ github.head_ref || github.ref }}
+        """,
+    ),
+    "GW002-run-git-C-fetch-branch": (
+        "GW002",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            steps:
+              - run: git -C src fetch origin main
+        """,
+    ),
+    "GW017-actor-and-label-named-like-a-bot": (
+        "GW017",
+        """
+        on: pull_request_target
+        jobs:
+          j:
+            runs-on: ubuntu-latest
+            if: >-
+              github.actor == 'octocat' &&
+              contains(github.event.pull_request.labels.*.name, 'renovate')
+            steps:
+              - run: echo ok
         """,
     ),
     "GW017-pr-author": (

@@ -11,12 +11,22 @@ from gha_warden.workflow import NodePath, Workflow
 
 _PRIVILEGED_TRIGGERS = frozenset({"pull_request_target", "workflow_run", "issue_comment"})
 _TRIGGERING_ACTOR = re.compile(r"(?<![\w.-])github\.triggering_actor(?![\w-])", re.IGNORECASE)
-_ACTOR = re.compile(r"(?<![\w.-])github\.actor(?![\w.-])", re.IGNORECASE)
+_ACTOR_CONTEXT = r"(?<![\w.-])github\.actor(?![\w.-])"
 _ACTOR_NOT_EQUAL = re.compile(
     r"github\.actor\s*!=\s*(?:'[^']*'|\"[^\"]*\")|(?:'[^']*'|\"[^\"]*\")\s*!=\s*github\.actor",
     re.IGNORECASE,
 )
-_BOT_LITERAL = re.compile(r"['\"][^'\"]*(?:\[bot\]|dependabot|renovate)[^'\"]*['\"]", re.IGNORECASE)
+_BOT_NAME = r"[^'\"]*(?:\[bot\]|dependabot|renovate)[^'\"]*"
+_BOT_LITERAL = rf"(?:'{_BOT_NAME}'|\"{_BOT_NAME}\")"
+# The actor compared with, or searched for, a bot-like literal. A bot name elsewhere in the
+# condition (a label, a branch) is not an actor check.
+_ACTOR_IS_BOT = re.compile(
+    rf"{_ACTOR_CONTEXT}\s*==\s*{_BOT_LITERAL}"
+    rf"|{_BOT_LITERAL}\s*==\s*{_ACTOR_CONTEXT}"
+    rf"|\b(?:startsWith|endsWith|contains)\(\s*{_ACTOR_CONTEXT}\s*,\s*{_BOT_LITERAL}"
+    rf"|\bcontains\(\s*(?:fromJSON\(\s*)?{_BOT_LITERAL}\s*\)?\s*,\s*{_ACTOR_CONTEXT}",
+    re.IGNORECASE,
+)
 _QUOTED_INDEX = re.compile(r"\[\s*['\"]([^'\"]+)['\"]\s*\]")
 
 
@@ -31,7 +41,7 @@ def spoofable_actor_checks(condition: str) -> list[str]:
         found.append("github.triggering_actor")
     # `github.actor != 'x'` excludes an identity; it does not authorize one.
     positive = _ACTOR_NOT_EQUAL.sub("", expression)
-    if _ACTOR.search(positive) and _BOT_LITERAL.search(positive):
+    if _ACTOR_IS_BOT.search(positive):
         found.append("github.actor")
     return found
 

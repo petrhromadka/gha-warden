@@ -111,11 +111,19 @@ _PR_COMMIT = (
     r"github\.event\.pull_request\.head\.(?:sha|repo)"
     r"|github\.event\.workflow_run\.head_(?:sha|repository)|refs/pull/"
 )
+# `git` and its global options. Options that take a separate argument (`-C src`, `-c k=v`,
+# `--git-dir .git`) must be consumed with it, or the subcommand is not recognised.
+_GIT_ARG = r"""(?:"[^"\n]*"|'[^'\n]*'|\S+)"""
+_GIT = (
+    r"\bgit\s+(?:"
+    rf"(?:-[Cc]|--(?:git-dir|work-tree|namespace|exec-path|super-prefix|config-env))\s+{_GIT_ARG}\s+"
+    r"|-\S+\s+)*"
+)
 _PR_CODE_COMMAND = re.compile(
     r"\bgh\s+pr\s+checkout\b"
-    r"|\bgit\s+(?:-\S+\s+)*(?:fetch|pull)\b(?:[^\n]|\\\n)*?(?<![\w.-])(?:refs/)?pull/"
-    rf"|\bgit\s+(?:-\S+\s+)*(?:fetch|pull|clone)\b(?:[^\n]|\\\n)*?(?:{_PR_COMMIT})"
-    r"|\bgit\s+(?:-\S+\s+)*(?:checkout|switch|reset|merge|cherry-pick|worktree\s+add)\b"
+    rf"|{_GIT}(?:fetch|pull)\b(?:[^\n]|\\\n)*?(?<![\w.-])(?:refs/)?pull/"
+    rf"|{_GIT}(?:fetch|pull|clone)\b(?:[^\n]|\\\n)*?(?:{_PR_COMMIT})"
+    rf"|{_GIT}(?:checkout|switch|reset|merge|cherry-pick|worktree\s+add)\b"
     rf"(?:[^\n]|\\\n)*?(?:{_UNTRUSTED_CHECKOUT.pattern})",
     re.IGNORECASE,
 )
