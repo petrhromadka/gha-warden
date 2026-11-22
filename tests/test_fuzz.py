@@ -187,6 +187,8 @@ UNPARSEABLE = {
     # PyYAML raises KeyError and AttributeError for these explicit tags.
     "bool-tag-on-non-boolean": "on: push\nname: !!bool steps\n",
     "timestamp-tag-on-non-date": "on: push\nname: !!timestamp x\n",
+    # An empty !!float makes PyYAML's float constructor index value[0] and raise IndexError.
+    "empty-float-tag": "on: push\nname: !!float\n",
 }
 
 
